@@ -144,59 +144,146 @@ function scrollTo(id: string) {
 }
 
 // ================================================================
-// PARTICLE FIELD  (isolated — no parent re-renders)
+// MAGIC CANVAS  (canvas-based — stars, aurora, shooting stars, dust)
 // ================================================================
 
-const StarDot = memo(function StarDot({
-  x, y, size, dur, del,
-}: { x: number; y: number; size: number; dur: number; del: number }) {
+const MagicCanvas = memo(function MagicCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+
+    let raf: number
+    let W = 0, H = 0
+
+    interface StarP  { x: number; y: number; r: number; phase: number; speed: number; maxOp: number }
+    interface ShootP { x: number; y: number; vx: number; vy: number; life: number; maxLife: number }
+    interface DustP  { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; r: number; hue: number }
+
+    let stars:  StarP[]  = []
+    let shoots: ShootP[] = []
+    let dust:   DustP[]  = []
+    let t = 0
+    let nextShoot = 100
+    let nextDust  = 3
+
+    const init = () => {
+      W = window.innerWidth
+      H = window.innerHeight
+      canvas.width  = W
+      canvas.height = H
+      stars = Array.from({ length: 300 }, () => ({
+        x:     Math.random() * W,
+        y:     Math.random() * H * 0.9,
+        r:     Math.random() * 1.5 + 0.2,
+        phase: Math.random() * Math.PI * 2,
+        speed: Math.random() * 0.016 + 0.004,
+        maxOp: Math.random() * 0.6 + 0.2,
+      }))
+    }
+
+    const tick = () => {
+      ctx.clearRect(0, 0, W, H)
+      t++
+
+      // ── Aurora ribbons ─────────────────────────────────────────
+      const ap = t * 0.004
+      const AURORA = [
+        { r: 74,  g: 127, b: 193, yf: 0.10 },
+        { r: 139, g: 107, b: 181, yf: 0.16 },
+        { r: 200, g: 146, b: 42,  yf: 0.07 },
+      ] as const
+      for (const a of AURORA) {
+        const yb = H * a.yf
+        ctx.beginPath()
+        ctx.moveTo(0, yb)
+        for (let x = 0; x <= W; x += 8)
+          ctx.lineTo(x, yb + Math.sin(ap + x * 0.0015 + a.yf * 10) * H * 0.035)
+        ctx.lineTo(W, 0); ctx.lineTo(0, 0); ctx.closePath()
+        ctx.fillStyle = `rgba(${a.r},${a.g},${a.b},${0.032 + Math.sin(ap * 1.2 + a.yf * 8) * 0.016})`
+        ctx.fill()
+      }
+
+      // ── Twinkling stars ────────────────────────────────────────
+      for (const s of stars) {
+        const op = ((Math.sin(t * s.speed + s.phase) + 1) / 2) * s.maxOp
+        ctx.beginPath()
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(230,235,255,${op})`
+        ctx.fill()
+        if (s.r > 1.1) {
+          const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4)
+          g.addColorStop(0, `rgba(210,225,255,${op * 0.22})`); g.addColorStop(1, "transparent")
+          ctx.fillStyle = g
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 4, 0, Math.PI * 2); ctx.fill()
+        }
+      }
+
+      // ── Shooting stars ─────────────────────────────────────────
+      if (--nextShoot <= 0) {
+        const ang = (18 + Math.random() * 28) * (Math.PI / 180)
+        shoots.push({
+          x: Math.random() * W * 0.75, y: Math.random() * H * 0.38,
+          vx: Math.cos(ang) * (8 + Math.random() * 6),
+          vy: Math.sin(ang) * (8 + Math.random() * 6),
+          life: 0, maxLife: 30 + Math.random() * 20,
+        })
+        nextShoot = 120 + Math.random() * 230
+      }
+      shoots = shoots.filter(ss => {
+        ss.x += ss.vx; ss.y += ss.vy; ss.life++
+        const op   = Math.sin((ss.life / ss.maxLife) * Math.PI) * 0.9
+        const tail = 10
+        const g = ctx.createLinearGradient(ss.x - ss.vx * tail, ss.y - ss.vy * tail, ss.x, ss.y)
+        g.addColorStop(0, "rgba(255,252,220,0)"); g.addColorStop(1, `rgba(255,252,220,${op})`)
+        ctx.beginPath(); ctx.moveTo(ss.x - ss.vx * tail, ss.y - ss.vy * tail)
+        ctx.lineTo(ss.x, ss.y); ctx.strokeStyle = g; ctx.lineWidth = 1.5; ctx.stroke()
+        const hg = ctx.createRadialGradient(ss.x, ss.y, 0, ss.x, ss.y, 5)
+        hg.addColorStop(0, `rgba(255,252,220,${op})`); hg.addColorStop(1, "transparent")
+        ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(ss.x, ss.y, 5, 0, Math.PI * 2); ctx.fill()
+        return ss.life < ss.maxLife
+      })
+
+      // ── Gold fairy dust ────────────────────────────────────────
+      if (--nextDust <= 0) {
+        dust.push({
+          x: Math.random() * W, y: H + 8,
+          vx: (Math.random() - 0.5) * 0.7,
+          vy: -(0.35 + Math.random() * 0.75),
+          life: 0, maxLife: 160 + Math.random() * 100,
+          r: Math.random() * 2 + 0.5,
+          hue: 32 + Math.random() * 18,
+        })
+        nextDust = 3 + Math.floor(Math.random() * 5)
+      }
+      dust = dust.filter(d => {
+        d.x += d.vx; d.y += d.vy
+        d.vx += (Math.random() - 0.5) * 0.035
+        d.life++
+        const op = Math.sin((d.life / d.maxLife) * Math.PI) * 0.48
+        const g = ctx.createRadialGradient(d.x, d.y, 0, d.x, d.y, d.r * 2.5)
+        g.addColorStop(0, `hsla(${d.hue},88%,68%,${op})`); g.addColorStop(1, "transparent")
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 2.5, 0, Math.PI * 2); ctx.fill()
+        return d.life < d.maxLife && d.y > -15
+      })
+
+      raf = requestAnimationFrame(tick)
+    }
+
+    init(); tick()
+    window.addEventListener("resize", init)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", init) }
+  }, [])
+
   return (
-    <div
+    <canvas
+      ref={canvasRef}
       aria-hidden="true"
-      className="star-particle"
-      style={{
-        position: "absolute", left: `${x}%`, top: `${y}%`,
-        width: size, height: size, borderRadius: "50%",
-        backgroundColor: "white", opacity: 0,
-        "--dur": `${dur}s`, "--del": `${del}s`,
-      } as React.CSSProperties}
+      style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}
     />
-  )
-})
-
-const ParticleField = memo(function ParticleField() {
-  const stars = useMemo(() =>
-    Array.from({ length: 88 }, (_, i) => ({
-      id: i, x: Math.random() * 100, y: Math.random() * 100,
-      size: Math.random() * 2.2 + 0.4,
-      dur: Math.random() * 4 + 2,
-      del: Math.random() * 8,
-    })), [])
-
-  const sparkles = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => ({
-      id: i, x: Math.random() * 100,
-      size: Math.random() * 3.5 + 1.5,
-      dur: Math.random() * 9 + 7,
-      del: Math.random() * 9,
-    })), [])
-
-  return (
-    <div aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-      {stars.map((s) => <StarDot key={s.id} {...s} />)}
-      {sparkles.map((s) => (
-        <div
-          key={s.id}
-          style={{
-            position: "absolute", left: `${s.x}%`, bottom: -12,
-            width: s.size, height: s.size, borderRadius: "50%",
-            backgroundColor: "rgba(200,146,42,0.55)",
-            animation: `drift-up ${s.dur}s ease-in-out ${s.del}s infinite`,
-            willChange: "transform, opacity",
-          }}
-        />
-      ))}
-    </div>
   )
 })
 
@@ -322,31 +409,55 @@ function SectionHeader({ label, title, subtitle }: { label: string; title: strin
 const CastleSilhouette = memo(function CastleSilhouette() {
   return (
     <div className="castle-animated relative flex items-end justify-center select-none">
-      {/* Ambient glow orbs */}
+      {/* Moon halo behind castle */}
+      <div aria-hidden="true" style={{
+        position: "absolute", width: 340, height: 340, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(180,210,255,0.10) 0%, rgba(74,127,193,0.12) 35%, rgba(20,50,120,0.06) 60%, transparent 75%)",
+        top: "2%", left: "50%", transform: "translateX(-50%)",
+        animation: "moon-breathe 7s ease-in-out infinite", filter: "blur(28px)", pointerEvents: "none",
+      }} />
+      {/* Blue ambient glow */}
       <div aria-hidden="true" style={{
         position: "absolute", width: 220, height: 220, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(74,127,193,0.18) 0%, transparent 70%)",
+        background: "radial-gradient(circle, rgba(74,127,193,0.22) 0%, transparent 70%)",
         top: "28%", left: "50%", transform: "translate(-50%,-50%)",
         animation: "pulse-orb 5s ease-in-out infinite", filter: "blur(32px)", pointerEvents: "none",
       }} />
+      {/* Gold ground glow */}
       <div aria-hidden="true" style={{
-        position: "absolute", width: 170, height: 80, borderRadius: "50%",
-        background: "radial-gradient(ellipse, rgba(200,146,42,0.22) 0%, transparent 70%)",
-        bottom: "6%", left: "50%", transform: "translateX(-50%)",
+        position: "absolute", width: 200, height: 90, borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(200,146,42,0.28) 0%, transparent 70%)",
+        bottom: "4%", left: "50%", transform: "translateX(-50%)",
         animation: "pulse-orb 3.5s ease-in-out 1.2s infinite", filter: "blur(22px)", pointerEvents: "none",
       }} />
 
-      <svg viewBox="0 0 280 450" width="280" height="450" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <svg viewBox="0 0 280 460" width="280" height="460" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
           <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%"   stopColor="#0D2A5C" />
             <stop offset="100%" stopColor="#071626" />
           </linearGradient>
           <linearGradient id="spireG" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#1A4B9C" />
+            <stop offset="0%"   stopColor="#1E58B8" />
             <stop offset="100%" stopColor="#0D2A5C" />
           </linearGradient>
+          <linearGradient id="beamG" x1="0.5" y1="0" x2="0.5" y2="1">
+            <stop offset="0%"   stopColor="#C8D8F8" stopOpacity="0.5" />
+            <stop offset="100%" stopColor="#C8D8F8" stopOpacity="0" />
+          </linearGradient>
+          <radialGradient id="winG" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor="#E5AB3A" stopOpacity="0.55" />
+            <stop offset="100%" stopColor="#C8922A" stopOpacity="0.08" />
+          </radialGradient>
         </defs>
+
+        {/* Light beams from main spire (behind castle) */}
+        <polygon points="140,22 112,230 168,230" fill="url(#beamG)"
+          style={{ animation: "beam-pulse 3.5s ease-in-out infinite" }} />
+        <polygon points="140,22 95,280 185,280" fill="url(#beamG)"
+          style={{ animation: "beam-pulse 4.5s ease-in-out 1.8s infinite", opacity: 0.55 }} />
+        <polygon points="140,22 132,160 148,160" fill="url(#beamG)"
+          style={{ animation: "beam-pulse 2.8s ease-in-out 0.6s infinite" }} />
 
         {/* Far-left turret */}
         <polygon points="28,202 51,260 5,260"    fill="url(#spireG)" />
@@ -380,9 +491,9 @@ const CastleSilhouette = memo(function CastleSilhouette() {
         <rect x="85"  y="188" width="9" height="10" fill="url(#spireG)" />
         <rect x="97"  y="188" width="9" height="10" fill="url(#spireG)" />
         <rect x="103" y="188" width="8" height="10" fill="url(#spireG)" />
-        <rect x="63" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
-        <rect x="79" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
-        <rect x="68" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.15)" />
+        <rect x="63" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
+        <rect x="79" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
+        <rect x="68" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.18)" />
 
         {/* Right main tower */}
         <polygon points="200,112 231,195 169,195" fill="url(#spireG)" />
@@ -393,9 +504,9 @@ const CastleSilhouette = memo(function CastleSilhouette() {
         <rect x="205" y="188" width="9" height="10" fill="url(#spireG)" />
         <rect x="217" y="188" width="9" height="10" fill="url(#spireG)" />
         <rect x="222" y="188" width="8" height="10" fill="url(#spireG)" />
-        <rect x="183" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
-        <rect x="199" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
-        <rect x="188" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.15)" />
+        <rect x="183" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
+        <rect x="199" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
+        <rect x="188" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.18)" />
 
         {/* Central tower (tallest) */}
         <polygon points="140,22 178,150 102,150"  fill="url(#spireG)" />
@@ -406,44 +517,53 @@ const CastleSilhouette = memo(function CastleSilhouette() {
         <rect x="141" y="143" width="10" height="11" fill="url(#spireG)" />
         <rect x="154" y="143" width="10" height="11" fill="url(#spireG)" />
         <rect x="167" y="143" width="11" height="11" fill="url(#spireG)" />
-        <rect x="121" y="172" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.28)" />
-        <rect x="145" y="172" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.28)" />
-        <rect x="127" y="225" width="26" height="36" rx="13"  fill="rgba(200,146,42,0.18)" />
-        <rect x="126" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.15)" />
-        <rect x="141" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.15)" />
+        <rect x="121" y="172" width="14" height="22" rx="7"   fill="url(#winG)" />
+        <rect x="145" y="172" width="14" height="22" rx="7"   fill="url(#winG)" />
+        <rect x="127" y="225" width="26" height="36" rx="13"  fill="rgba(200,146,42,0.22)" />
+        <rect x="126" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.18)" />
+        <rect x="141" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.18)" />
 
-        {/* Gate arch cutout painted in page background */}
+        {/* Gate arch */}
         <path d="M 108,400 L 108,348 Q 140,316 172,348 L 172,400 Z" fill="#020B18" />
 
         {/* Ground base */}
-        <rect x="0" y="398" width="280" height="10" fill="url(#bodyG)" />
+        <rect x="0" y="398" width="280" height="12" fill="url(#bodyG)" />
+
+        {/* Animated flag on main spire */}
+        <line x1="140" y1="6" x2="140" y2="22" stroke="rgba(200,146,42,0.55)" strokeWidth="1.2" />
+        <g style={{ transformBox: "fill-box", transformOrigin: "0% 50%", animation: "flag-wave 2.8s ease-in-out infinite" }}>
+          <rect x="140" y="6" width="22" height="14" rx="2" fill="#C8922A" opacity="0.9" />
+          <line x1="140" y1="6" x2="162" y2="13" stroke="rgba(200,146,42,0.3)" strokeWidth="0.5" />
+        </g>
 
         {/* Star dots at spire tips */}
-        <circle cx="140" cy="20"  r="4.5" fill="#E5AB3A" opacity="0.9" />
-        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8" />
-        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8" />
-        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7" />
-        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7" />
+        <circle cx="140" cy="4"   r="3.5" fill="#E5AB3A" opacity="0.95" style={{ animation: "star-twinkle 2s ease-in-out infinite" }} />
+        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  style={{ animation: "star-twinkle 2.8s ease-in-out 0.5s infinite" }} />
+        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  style={{ animation: "star-twinkle 3.2s ease-in-out 1s infinite" }} />
+        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  style={{ animation: "star-twinkle 2.5s ease-in-out 0.3s infinite" }} />
+        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  style={{ animation: "star-twinkle 3s ease-in-out 1.5s infinite" }} />
 
-        {/* Gold trim edges on main spire */}
-        <line x1="140" y1="22" x2="178" y2="150" stroke="rgba(200,146,42,0.2)" strokeWidth="0.5" />
-        <line x1="140" y1="22" x2="102" y2="150" stroke="rgba(200,146,42,0.2)" strokeWidth="0.5" />
+        {/* Gold trim on main spire */}
+        <line x1="140" y1="22" x2="178" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
+        <line x1="140" y1="22" x2="102" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
       </svg>
 
-      {/* Floating sparkles around castle */}
+      {/* Floating sparkles */}
       {[
-        { top: "22%", left: "10%", size: 6, dur: 6, del: 0   },
-        { top: "38%", left: "88%", size: 5, dur: 7, del: 2   },
-        { top: "58%", left: "6%",  size: 4, dur: 8, del: 1   },
-        { top: "14%", left: "80%", size: 7, dur: 5, del: 3   },
-        { top: "70%", left: "90%", size: 5, dur: 9, del: 0.5 },
+        { top: "18%", left: "8%",  size: 7, dur: 6, del: 0   },
+        { top: "35%", left: "90%", size: 5, dur: 7, del: 2   },
+        { top: "55%", left: "4%",  size: 4, dur: 8, del: 1   },
+        { top: "12%", left: "82%", size: 8, dur: 5, del: 3   },
+        { top: "68%", left: "92%", size: 5, dur: 9, del: 0.5 },
+        { top: "28%", left: "2%",  size: 3, dur: 7, del: 1.5 },
+        { top: "48%", left: "96%", size: 4, dur: 6, del: 4   },
       ].map((sp, i) => (
         <div key={i} aria-hidden="true" style={{
           position: "absolute", top: sp.top, left: sp.left,
           width: sp.size, height: sp.size, borderRadius: "50%",
-          backgroundColor: "rgba(200,146,42,0.7)",
+          backgroundColor: "rgba(200,146,42,0.75)",
           animation: `float-sm ${sp.dur}s ease-in-out ${sp.del}s infinite`,
-          boxShadow: "0 0 6px rgba(200,146,42,0.5)",
+          boxShadow: `0 0 ${sp.size * 2}px rgba(200,146,42,0.55)`,
         }} />
       ))}
     </div>
@@ -1350,7 +1470,7 @@ export default function Page() {
     <main className="relative bg-[#020B18] min-h-screen">
       <div className="noise-overlay" aria-hidden="true" />
       <div className="ambient-bg"   aria-hidden="true" />
-      <ParticleField />
+      <MagicCanvas />
       <CursorSpotlight />
       <Navigation activeSection={activeSection} />
       <HeroSection />
