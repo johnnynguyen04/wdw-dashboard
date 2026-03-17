@@ -28,7 +28,7 @@
   --park-ep: #8B6BB5;
 
   --radius-card: 18px;
-  --shadow-card:  0 24px 60px -16px rgba(0, 0, 0, 0.65);
+  --shadow-card:  0 24px 60px -16px rgba(2, 11, 24, 0.75), 0 8px 20px -8px rgba(7, 22, 38, 0.4);
   --shadow-glow:  0 0 40px -8px rgba(200, 146, 42, 0.18);
 }
 
@@ -134,28 +134,46 @@ body {
    UTILITY CLASSES
 ============================================================ */
 
-/* Liquid-glass card (inner border + inner shadow for refraction) */
+/* Double-bezel card — outer shell + inner core for machined depth */
 .glass-card {
+  background: rgba(7, 18, 38, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--radius-card);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(2, 11, 24, 0.3),
+    var(--shadow-card);
+  position: relative;
+}
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: calc(var(--radius-card) - 5px);
   background: var(--bg-card);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    var(--shadow-card);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  z-index: 0;
+  pointer-events: none;
+}
+.glass-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .glass-card-hover {
-  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s cubic-bezier(0.16,1,0.3,1);
+  transition: border-color 0.3s cubic-bezier(0.32,0.72,0,1), box-shadow 0.3s cubic-bezier(0.32,0.72,0,1);
 }
 .glass-card-hover:hover {
   border-color: var(--border-hover);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
     var(--shadow-card),
     var(--shadow-glow);
+}
+.glass-card-hover:active {
+  transform: scale(0.985) translateY(1px);
 }
 
 /* Gold shimmer text */
@@ -175,10 +193,6 @@ body {
   animation: shimmer-sweep 3.5s linear infinite;
 }
 
-/* Castle animation */
-.castle-animated {
-  animation: castle-glow 4.5s ease-in-out infinite;
-}
 
 /* Star particle */
 .star-particle {
@@ -188,6 +202,16 @@ body {
 /* Float elements */
 .float-anim { animation: float 5.5s ease-in-out infinite; }
 .float-sm   { animation: float-sm 4s ease-in-out infinite; }
+
+/* Breathing pulse for status indicators */
+@keyframes breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.15); }
+}
+.breathe { animation: breathe 3s ease-in-out infinite; }
+
+/* Tabular numbers for data */
+.tabular-nums { font-variant-numeric: tabular-nums; }
 
 /* ============================================================
    THEMED FORM ELEMENTS

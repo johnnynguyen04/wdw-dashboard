@@ -399,16 +399,16 @@ function ParkBadge({ park }: { park: string }) {
 function SectionHeader({ label, title, subtitle }: { label: string; title: string; subtitle?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 28, filter: "blur(4px)" }}
+      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
       className="mb-12"
     >
       <span className="text-[11px] font-semibold tracking-[0.22em] uppercase text-[#C8922A] mb-3 block">
         {label}
       </span>
-      <h2 className="text-4xl md:text-5xl font-bold text-[#EDE9E3] tracking-tight leading-none mb-4">
+      <h2 className="text-4xl md:text-5xl font-extrabold text-[#EDE9E3] tracking-tight leading-none mb-4">
         {title}
       </h2>
       {subtitle && (
@@ -419,126 +419,8 @@ function SectionHeader({ label, title, subtitle }: { label: string; title: strin
 }
 
 // ================================================================
-// FAIRY-TALE CASTLE SVG
+// (Castle removed)
 // ================================================================
-
-const CastleSilhouette = memo(function CastleSilhouette() {
-  return (
-    <div className="relative flex items-end justify-center select-none">
-
-      <svg viewBox="0 0 280 460" width="280" height="460" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#0D2A5C" />
-            <stop offset="100%" stopColor="#071626" />
-          </linearGradient>
-          <linearGradient id="spireG" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#1E58B8" />
-            <stop offset="100%" stopColor="#0D2A5C" />
-          </linearGradient>
-          <linearGradient id="beamG" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0%"   stopColor="#C8D8F8" stopOpacity="0.5" />
-            <stop offset="100%" stopColor="#C8D8F8" stopOpacity="0" />
-          </linearGradient>
-          <radialGradient id="winG" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#E5AB3A" stopOpacity="0.55" />
-            <stop offset="100%" stopColor="#C8922A" stopOpacity="0.08" />
-          </radialGradient>
-        </defs>
-
-
-        {/* Far-left turret */}
-        <polygon points="28,202 51,260 5,260"    fill="url(#spireG)" />
-        <rect x="5"   y="260" width="46" height="140" fill="url(#bodyG)" />
-        <rect x="5"  y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="15" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="25" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="35" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="45" y="254" width="6" height="9" fill="url(#spireG)" />
-
-        {/* Far-right turret */}
-        <polygon points="252,202 275,260 229,260" fill="url(#spireG)" />
-        <rect x="229" y="260" width="46" height="140" fill="url(#bodyG)" />
-        <rect x="229" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="239" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="249" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="259" y="254" width="8" height="9" fill="url(#spireG)" />
-        <rect x="269" y="254" width="6" height="9" fill="url(#spireG)" />
-
-        {/* Left wall */}
-        <rect x="51"  y="338" width="59" height="62" fill="url(#bodyG)" />
-        {/* Right wall */}
-        <rect x="170" y="338" width="59" height="62" fill="url(#bodyG)" />
-
-        {/* Left main tower */}
-        <polygon points="80,112 111,195 49,195"  fill="url(#spireG)" />
-        <rect x="49" y="195" width="62" height="205" fill="url(#bodyG)" />
-        <rect x="49"  y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="61"  y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="73"  y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="85"  y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="97"  y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="103" y="188" width="8" height="10" fill="url(#spireG)" />
-        <rect x="63" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
-        <rect x="79" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
-        <rect x="68" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.18)" />
-
-        {/* Right main tower */}
-        <polygon points="200,112 231,195 169,195" fill="url(#spireG)" />
-        <rect x="169" y="195" width="62" height="205" fill="url(#bodyG)" />
-        <rect x="169" y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="181" y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="193" y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="205" y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="217" y="188" width="9" height="10" fill="url(#spireG)" />
-        <rect x="222" y="188" width="8" height="10" fill="url(#spireG)" />
-        <rect x="183" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
-        <rect x="199" y="215" width="11" height="17" rx="5.5" fill="url(#winG)" />
-        <rect x="188" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.18)" />
-
-        {/* Central tower (tallest) */}
-        <polygon points="140,22 178,150 102,150"  fill="url(#spireG)" />
-        <rect x="102" y="150" width="76" height="250" fill="url(#bodyG)" />
-        <rect x="102" y="143" width="10" height="11" fill="url(#spireG)" />
-        <rect x="115" y="143" width="10" height="11" fill="url(#spireG)" />
-        <rect x="128" y="143" width="10" height="11" fill="url(#spireG)" />
-        <rect x="141" y="143" width="10" height="11" fill="url(#spireG)" />
-        <rect x="154" y="143" width="10" height="11" fill="url(#spireG)" />
-        <rect x="167" y="143" width="11" height="11" fill="url(#spireG)" />
-        <rect x="121" y="172" width="14" height="22" rx="7"   fill="url(#winG)" />
-        <rect x="145" y="172" width="14" height="22" rx="7"   fill="url(#winG)" />
-        <rect x="127" y="225" width="26" height="36" rx="13"  fill="rgba(200,146,42,0.22)" />
-        <rect x="126" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.18)" />
-        <rect x="141" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.18)" />
-
-        {/* Gate arch */}
-        <path d="M 108,400 L 108,348 Q 140,316 172,348 L 172,400 Z" fill="#020B18" />
-
-        {/* Ground base */}
-        <rect x="0" y="398" width="280" height="12" fill="url(#bodyG)" />
-
-        {/* Animated flag on main spire */}
-        <line x1="140" y1="6" x2="140" y2="22" stroke="rgba(200,146,42,0.55)" strokeWidth="1.2" />
-        <g style={{ transformBox: "fill-box", transformOrigin: "0% 50%", animation: "flag-wave 2.8s ease-in-out infinite" }}>
-          <rect x="140" y="6" width="22" height="14" rx="2" fill="#C8922A" opacity="0.9" />
-          <line x1="140" y1="6" x2="162" y2="13" stroke="rgba(200,146,42,0.3)" strokeWidth="0.5" />
-        </g>
-
-        {/* Star dots at spire tips */}
-        <circle cx="140" cy="4"   r="3.5" fill="#E5AB3A" opacity="0.95" />
-        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  />
-        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  />
-        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  />
-        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  />
-
-        {/* Gold trim on main spire */}
-        <line x1="140" y1="22" x2="178" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
-        <line x1="140" y1="22" x2="102" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
-      </svg>
-
-    </div>
-  )
-})
 
 // ================================================================
 // NAVIGATION
@@ -590,7 +472,7 @@ function Navigation({ activeSection }: { activeSection: string }) {
         </nav>
 
         <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-[#3A506B]">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#5A9E6F] animate-pulse" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#5A9E6F] breathe" />
           1,754,414 records
         </div>
       </div>
@@ -604,9 +486,7 @@ function Navigation({ activeSection }: { activeSection: string }) {
 
 function HeroSection() {
   const { scrollY } = useScroll()
-  const castleY     = useTransform(scrollY, [0, 600], [0, -70])
   const contentY    = useTransform(scrollY, [0, 400], [0, -28])
-  const heroOpacity = useTransform(scrollY, [0, 380], [1, 0])
 
   const containerV = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }
   const itemV = {
@@ -621,7 +501,7 @@ function HeroSection() {
       }} />
 
       <div className="max-w-7xl mx-auto px-6 w-full pt-24 pb-16">
-        <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] gap-12 items-center">
+        <div className="max-w-3xl">
 
           {/* Content */}
           <motion.div style={{ y: contentY }} variants={containerV} initial="hidden" animate="visible" className="relative z-10">
@@ -635,12 +515,12 @@ function HeroSection() {
             </motion.div>
 
             <motion.div variants={itemV} className="mb-6">
-              <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.95] text-[#EDE9E3]">
-                The Science<br />
-                of{" "}
-                <span className="shimmer-gold">Disney</span>
+              <h1 className="text-5xl md:text-7xl tracking-tight leading-[0.95] text-[#EDE9E3]">
+                <span className="font-light">The science</span><br />
+                <span className="font-light">of</span>{" "}
+                <span className="shimmer-gold font-black">Disney</span>
                 <br />
-                Magic.
+                <span className="font-black">magic.</span>
               </h1>
             </motion.div>
 
@@ -658,7 +538,7 @@ function HeroSection() {
                 { value: 57.9,    label: "R² × 100",   fmt: (n: number) => n.toFixed(1) + "%" },
               ].map((s) => (
                 <div key={s.label} className="glass-card p-4 text-center" style={{ borderRadius: 12 }}>
-                  <div className="text-2xl font-black font-mono text-[#EDE9E3] mb-0.5">
+                  <div className="text-2xl font-black font-mono tabular-nums text-[#EDE9E3] mb-0.5">
                     <AnimatedCounter value={s.value} format={s.fmt} />
                   </div>
                   <div className="text-[10px] font-semibold tracking-widest uppercase text-[#3A506B]">{s.label}</div>
@@ -669,35 +549,29 @@ function HeroSection() {
             <motion.div variants={itemV} className="flex flex-wrap gap-3">
               <motion.button
                 onClick={() => scrollTo("overview")}
-                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97, y: 1 }}
+                whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97, y: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm"
                 style={{
                   background: "linear-gradient(135deg, #C8922A 0%, #E5AB3A 100%)",
                   color: "#020B18", boxShadow: "0 8px 32px -8px rgba(200,146,42,0.45)",
                 }}
               >
-                Explore the Data <ArrowRight size={15} />
+                Explore the Data
+                <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center">
+                  <ArrowRight size={13} />
+                </span>
               </motion.button>
               <motion.button
                 onClick={() => scrollTo("predict")}
-                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97, y: 1 }}
+                whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.97, y: 1 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
                 className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm text-[#EDE9E3]"
                 style={{ border: "1px solid rgba(200,146,42,0.25)", background: "rgba(200,146,42,0.07)" }}
               >
-                <Brain size={15} style={{ color: "#C8922A" }} /> Predict Wait Time
+                <Brain size={15} style={{ color: "#C8922A" }} /> Predict wait time
               </motion.button>
             </motion.div>
-          </motion.div>
-
-          {/* Castle */}
-          <motion.div
-            style={{ y: castleY, opacity: heroOpacity }}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-            className="flex items-end justify-center"
-          >
-            <CastleSilhouette />
           </motion.div>
         </div>
 
@@ -726,22 +600,22 @@ function OverviewSection() {
   const maxSeason = Math.max(...SEASONS.map((s) => s.avg))
 
   return (
-    <section id="overview" className="relative py-28 px-6">
-      <div className="section-divider mb-28" />
+    <section id="overview" className="relative py-36 px-6">
+      <div className="section-divider mb-32" />
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="By the Numbers"
-          title="7 Years. 1.75M Records."
+          title="7 years. 1.75M records."
           subtitle="Every wait-time data point from 2015 through 2021, distilled into actionable patterns."
         />
 
         {/* Row 1: 2fr + 1fr stacked */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
           <TiltCard className="md:col-span-2 glass-card glass-card-hover p-8 relative overflow-hidden">
-            <div aria-hidden="true" className="absolute -right-8 -top-8 w-48 h-48 rounded-full opacity-10 pointer-events-none"
-              style={{ background: "radial-gradient(circle, #C8922A, transparent)" }} />
+            <div aria-hidden="true" className="absolute -right-8 -top-8 w-48 h-48 rounded-full pointer-events-none breathe"
+              style={{ background: "radial-gradient(circle, rgba(200,146,42,0.15), transparent)" }} />
             <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-4">Total Records Analyzed</div>
-            <div className="text-7xl md:text-8xl font-black font-mono text-[#EDE9E3] leading-none mb-3">
+            <div className="text-7xl md:text-8xl font-black font-mono tabular-nums text-[#EDE9E3] leading-none mb-3">
               <AnimatedCounter value={1754414} format={(n) => n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n.toLocaleString()} />
             </div>
             <p className="text-[#7D93B2] text-sm max-w-[40ch]">
@@ -760,7 +634,7 @@ function OverviewSection() {
           <div className="flex flex-col gap-5">
             <TiltCard className="glass-card glass-card-hover p-6 flex-1">
               <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#7D93B2] mb-2">Overall Avg Wait</div>
-              <div className="text-5xl font-black font-mono text-[#EDE9E3] leading-none">
+              <div className="text-5xl font-black font-mono tabular-nums text-[#EDE9E3] leading-none">
                 <AnimatedCounter value={56.2} format={(n) => n.toFixed(1)} />
               </div>
               <div className="text-[#C8922A] font-medium mt-1">minutes</div>
@@ -770,7 +644,7 @@ function OverviewSection() {
             </TiltCard>
             <TiltCard className="glass-card glass-card-hover p-6 flex-1">
               <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#7D93B2] mb-2">ML Model R²</div>
-              <div className="text-5xl font-black font-mono text-[#EDE9E3] leading-none">0.579</div>
+              <div className="text-5xl font-black font-mono tabular-nums text-[#EDE9E3] leading-none">0.579</div>
               <div className="text-[#C8922A] font-medium mt-1">MAE ± 15 min</div>
               <div className="mt-3 h-1.5 rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
                 <motion.div initial={{ width: 0 }} whileInView={{ width: "57.9%" }} viewport={{ once: true }}
@@ -855,12 +729,12 @@ function RidesSection() {
   const maxAvg   = Math.max(...RIDES.map((r) => r.avg))
 
   return (
-    <section id="rides" className="relative py-28 px-6">
-      <div className="section-divider mb-28" />
+    <section id="rides" className="relative py-36 px-6">
+      <div className="section-divider mb-32" />
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Attraction Analysis"
-          title="Every Ride, Decoded."
+          title="Every ride, decoded."
           subtitle="Average, median, and standard deviation for all 8 attractions — so you know exactly what to expect before you step in line."
         />
 
@@ -884,48 +758,59 @@ function RidesSection() {
           })}
         </div>
 
-        {/* Ride cards */}
-        <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Ride cards — asymmetric 2-col layout */}
+        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <AnimatePresence mode="popLayout">
             {filtered.map((ride, i) => {
               const m    = PARK_META[ride.park]
               const barW = (ride.avg / maxAvg) * 100
+              const isHigh = ride.avg >= 70
               return (
                 <motion.div key={ride.id} layout
-                  initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ delay: i * 0.05, type: "spring", stiffness: 120, damping: 20 }}>
-                  <TiltCard className="glass-card glass-card-hover p-6 h-full flex flex-col gap-4 relative" intensity={6}>
-                    {/* Park color top bar */}
-                    <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-[18px]" style={{ background: m?.color }} />
-                    <div className="mt-1">
-                      <ParkBadge park={ride.park} />
-                    </div>
-                    <h3 className="text-[#EDE9E3] font-bold text-base leading-tight">{ride.name}</h3>
-                    <div>
-                      <div className="flex justify-between text-[11px] mb-2">
-                        <span className="text-[#3A506B] font-medium">Avg wait</span>
-                        <span className="font-mono font-bold" style={{ color: m?.color }}>{ride.avg} min</span>
+                  initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: i * 0.06, type: "spring", stiffness: 100, damping: 20 }}>
+                  <TiltCard className="glass-card glass-card-hover p-7 h-full relative" intensity={5}>
+                    {/* Park color accent line */}
+                    <div className="absolute top-0 left-6 right-6 h-[2px]" style={{ background: `linear-gradient(90deg, transparent, ${m?.color}, transparent)` }} />
+                    <div className="flex items-start justify-between mt-2 mb-4">
+                      <div>
+                        <ParkBadge park={ride.park} />
+                        <h3 className="text-[#EDE9E3] font-bold text-lg leading-tight mt-3">{ride.name}</h3>
                       </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-black font-mono tabular-nums" style={{ color: m?.color }}>{ride.avg}</div>
+                        <div className="text-[10px] text-[#3A506B] font-medium tracking-wide uppercase">avg min</div>
+                      </div>
+                    </div>
+                    <div className="mb-5">
                       <div className="h-1.5 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
                         <motion.div initial={{ width: 0 }} whileInView={{ width: `${barW}%` }}
                           viewport={{ once: true }}
-                          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 + 0.1 }}
+                          transition={{ duration: 1, ease: [0.32, 0.72, 0, 1], delay: i * 0.06 + 0.1 }}
                           className="h-full rounded-full"
-                          style={{ background: `linear-gradient(90deg,${m?.color}88,${m?.color})` }} />
+                          style={{ background: `linear-gradient(90deg,${m?.color}55,${m?.color})` }} />
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-center mt-auto">
-                      {[
-                        { val: ride.avg.toString(),    label: "Avg"    },
-                        { val: ride.median.toString(), label: "Median" },
-                        { val: `±${ride.std}`,         label: "Std Dev"},
-                      ].map((s) => (
-                        <div key={s.label}>
-                          <div className="text-lg font-black font-mono" style={{ color: m?.color }}>{s.val}</div>
-                          <div className="text-[9px] font-semibold tracking-widest uppercase text-[#3A506B]">{s.label}</div>
-                        </div>
-                      ))}
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-5">
+                        {[
+                          { val: ride.median.toString(), label: "Median" },
+                          { val: `±${ride.std}`,         label: "Std Dev"},
+                        ].map((s) => (
+                          <div key={s.label}>
+                            <div className="text-sm font-bold font-mono tabular-nums text-[#EDE9E3]">{s.val}</div>
+                            <div className="text-[9px] font-medium tracking-widest uppercase text-[#3A506B]">{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {isHigh && (
+                        <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-1 rounded-md"
+                          style={{ background: "rgba(200,74,42,0.12)", color: "#C84A2A", border: "1px solid rgba(200,74,42,0.25)" }}>
+                          High demand
+                        </span>
+                      )}
                     </div>
                   </TiltCard>
                 </motion.div>
@@ -935,8 +820,8 @@ function RidesSection() {
         </motion.div>
 
         {/* Feature importance */}
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }} transition={{ duration: 0.55 }}
+        <motion.div initial={{ opacity: 0, y: 24, filter: "blur(4px)" }} whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          viewport={{ once: true }} transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
           className="mt-8 glass-card p-8">
           <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 items-center">
             <div>
@@ -987,12 +872,12 @@ function PredictSection() {
   const category = result ? getWaitCategory(result.prediction) : null
 
   return (
-    <section id="predict" className="relative py-28 px-6">
-      <div className="section-divider mb-28" />
+    <section id="predict" className="relative py-36 px-6">
+      <div className="section-divider mb-32" />
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Machine Learning Model"
-          title="Predict Your Wait."
+          title="Predict your wait."
           subtitle="Random Forest model trained on 1.75M records. Select an attraction, day, and travel month for an instant prediction."
         />
 
@@ -1043,7 +928,8 @@ function PredictSection() {
               </div>
             </div>
             <motion.button onClick={handlePredict}
-              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97, y: 1 }}
+              whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97, y: 1 }}
+              transition={{ type: "spring", stiffness: 400, damping: 25 }}
               disabled={loading}
               className="w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
               style={{
@@ -1054,7 +940,7 @@ function PredictSection() {
               }}>
               {loading ? (
                 <>
-                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: [0.32, 0.72, 0, 1] }}
                     className="w-4 h-4 rounded-full border-2 border-[#C8922A] border-t-transparent" />
                   Calculating…
                 </>
@@ -1070,10 +956,13 @@ function PredictSection() {
               {!result && !loading && (
                 <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="flex flex-col items-center justify-center text-center h-full gap-4">
-                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+                    className="w-16 h-16 rounded-2xl flex items-center justify-center"
                     style={{ background: "rgba(200,146,42,0.08)", border: "1px solid rgba(200,146,42,0.15)" }}>
                     <Brain size={28} style={{ color: "#C8922A", opacity: 0.55 }} />
-                  </div>
+                  </motion.div>
                   <p className="text-[#3A506B] text-sm max-w-[24ch]">
                     Configure your trip details and hit Calculate to get a prediction.
                   </p>
@@ -1082,12 +971,12 @@ function PredictSection() {
               {loading && (
                 <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   className="flex flex-col items-center justify-center gap-5 h-full">
-                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.4, ease: [0.32, 0.72, 0, 1] }}
                     className="w-12 h-12 rounded-full border-2 border-[rgba(200,146,42,0.2)] border-t-[#C8922A]" />
                   <p className="text-[#3A506B] text-sm">Running Random Forest model…</p>
                   <div className="w-48 h-1 rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
                     <motion.div initial={{ x: "-100%" }} animate={{ x: "100%" }}
-                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      transition={{ repeat: Infinity, duration: 1.2, ease: [0.32, 0.72, 0, 1] }}
                       className="h-full w-1/2 rounded-full bg-gradient-to-r from-transparent via-[#C8922A] to-transparent" />
                   </div>
                 </motion.div>
@@ -1099,7 +988,7 @@ function PredictSection() {
                   <div className="flex items-start justify-between">
                     <div>
                       <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-1">Predicted Wait</div>
-                      <div className="text-8xl font-black font-mono text-[#EDE9E3] leading-none">{result.prediction}</div>
+                      <div className="text-8xl font-black font-mono tabular-nums text-[#EDE9E3] leading-none">{result.prediction}</div>
                       <div className="text-xl font-medium text-[#C8922A] mt-1">minutes</div>
                     </div>
                     {category && (
@@ -1160,12 +1049,12 @@ function TimingSection() {
   const minDay = Math.min(...DAYS.map((d) => d.avg))
 
   return (
-    <section id="timing" className="relative py-28 px-6">
-      <div className="section-divider mb-28" />
+    <section id="timing" className="relative py-36 px-6">
+      <div className="section-divider mb-32" />
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Visit Planning"
-          title="Timing is Everything."
+          title="Timing is everything."
           subtitle="Day-of-week patterns reveal a clear midweek advantage — up to 22% shorter waits than weekend peaks."
         />
 
@@ -1217,8 +1106,9 @@ function TimingSection() {
               { icon: <AlertTriangle size={15} />,color: "#C84A2A", title: "Avoid Holiday Weeks",
                 body: "Christmas (+43%) and Thanksgiving (+25%) are the biggest crowd spikes in the dataset." },
             ].map((card, i) => (
-              <motion.div key={card.title} initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }} transition={{ delay: i * 0.09 }}
+              <motion.div key={card.title} initial={{ opacity: 0, x: 16, filter: "blur(3px)" }}
+                whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+                viewport={{ once: true }} transition={{ delay: i * 0.09, duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
                 className="glass-card p-5 flex gap-4">
                 <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
                   style={{ background: `${card.color}18`, border: `1px solid ${card.color}44`, color: card.color }}>
@@ -1275,12 +1165,12 @@ function StudiosSection() {
   const rides = Object.keys(HS_HOURLY)
 
   return (
-    <section id="studios" className="relative py-28 px-6">
-      <div className="section-divider mb-28" />
+    <section id="studios" className="relative py-36 px-6">
+      <div className="section-divider mb-32" />
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Hollywood Studios Deep Dive"
-          title="Hour by Hour."
+          title="Hour by hour."
           subtitle="Hourly wait-time heatmap for all 4 DHS attractions — 8 AM through 9 PM. Plan your visit down to the minute."
         />
 
@@ -1334,24 +1224,30 @@ function StudiosSection() {
         </TiltCard>
 
         {/* Strategy cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {[
             { ride: "Slinky Dog Dash",         color: "#C8922A", best: "8–9 AM",  tip: "Rope drop essential. Waits exceed 88 min by noon. Hit this first or use Lightning Lane." },
             { ride: "Rock 'n' Roller Coaster", color: "#4A7FC1", best: "7–9 PM",  tip: "Peaks midday around 78 min. Evening 7–9 PM drops to ~30 min — the sweet spot." },
             { ride: "Toy Story Mania",          color: "#5A9E6F", best: "8–9 PM",  tip: "Busy but manageable through the day. Late evening window is best at ~29 min." },
             { ride: "Alien Swirling Saucers",   color: "#8B6BB5", best: "Anytime", tip: "Lowest waits in DHS. Never exceeds 38 min — flexible any time, best after 6 PM." },
           ].map((s, i) => (
-            <motion.div key={s.ride} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }} transition={{ delay: i * 0.09 }}
-              className="glass-card glass-card-hover p-6">
-              <div className="text-[10px] font-bold tracking-widest uppercase mb-3 px-2 py-1 rounded-sm inline-block"
-                style={{ background: `${s.color}14`, color: s.color, border: `1px solid ${s.color}30` }}>
-                {s.ride}
+            <motion.div key={s.ride} initial={{ opacity: 0, y: 20, filter: "blur(3px)" }}
+              whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              viewport={{ once: true }} transition={{ delay: i * 0.09, duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
+              className="glass-card glass-card-hover p-6 flex gap-5 items-start">
+              <div className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5"
+                style={{ background: `${s.color}14`, border: `1px solid ${s.color}30` }}>
+                <Clock size={16} style={{ color: s.color }} />
               </div>
-              <p className="text-xs text-[#7D93B2] leading-relaxed mb-4">{s.tip}</p>
-              <div className="flex items-center gap-2">
-                <Clock size={12} style={{ color: "#5A9E6F" }} />
-                <span className="text-[11px] font-bold text-[#5A9E6F]">Best: {s.best}</span>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-bold text-[#EDE9E3]">{s.ride}</span>
+                  <span className="text-[10px] font-bold font-mono tabular-nums px-2 py-0.5 rounded-md"
+                    style={{ background: "rgba(90,158,111,0.12)", color: "#5A9E6F", border: "1px solid rgba(90,158,111,0.25)" }}>
+                    {s.best}
+                  </span>
+                </div>
+                <p className="text-xs text-[#7D93B2] leading-relaxed">{s.tip}</p>
               </div>
             </motion.div>
           ))}
@@ -1406,7 +1302,7 @@ function Footer() {
           <span>
             Walt Disney World® is a registered trademark of The Walt Disney Company. Independent academic analysis only.
           </span>
-          <span className="font-mono">© 2024 Johnny Nguyen · Data Science Portfolio</span>
+          <span className="font-mono">© 2025 <span style={{ color: "#C8922A" }}>Johnny Nguyen</span> · Data science portfolio</span>
         </div>
       </div>
     </footer>
