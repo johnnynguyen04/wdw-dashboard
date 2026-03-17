@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react"
+import { useState, useRef, useCallback, useEffect, memo } from "react"
 import {
   motion,
   useMotionValue,
@@ -209,16 +209,32 @@ const MagicCanvas = memo(function MagicCanvas() {
 
       // ── Twinkling stars ────────────────────────────────────────
       for (const s of stars) {
-        const op = ((Math.sin(t * s.speed + s.phase) + 1) / 2) * s.maxOp
+        const raw = (Math.sin(t * s.speed + s.phase) + 1) / 2
+        const op  = Math.pow(raw, 1.6) * s.maxOp        // sharper on/off twinkle
         ctx.beginPath()
         ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(230,235,255,${op})`
         ctx.fill()
-        if (s.r > 1.1) {
-          const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 4)
-          g.addColorStop(0, `rgba(210,225,255,${op * 0.22})`); g.addColorStop(1, "transparent")
+        // Soft halo on medium stars
+        if (s.r > 1.0) {
+          const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 5)
+          g.addColorStop(0, `rgba(210,225,255,${op * 0.28})`); g.addColorStop(1, "transparent")
           ctx.fillStyle = g
-          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 4, 0, Math.PI * 2); ctx.fill()
+          ctx.beginPath(); ctx.arc(s.x, s.y, s.r * 5, 0, Math.PI * 2); ctx.fill()
+        }
+        // 4-point cross spike on big bright stars
+        if (s.r > 1.3 && op > 0.45) {
+          const spike = s.r * 10
+          const bri   = `rgba(235,240,255,${op * 0.65})`
+          for (const [x1, y1, x2, y2] of [
+            [s.x - spike, s.y, s.x + spike, s.y],
+            [s.x, s.y - spike, s.x, s.y + spike],
+          ]) {
+            const sg = ctx.createLinearGradient(x1, y1, x2, y2)
+            sg.addColorStop(0, "transparent"); sg.addColorStop(0.5, bri); sg.addColorStop(1, "transparent")
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2)
+            ctx.strokeStyle = sg; ctx.lineWidth = 0.9; ctx.stroke()
+          }
         }
       }
 
@@ -408,28 +424,7 @@ function SectionHeader({ label, title, subtitle }: { label: string; title: strin
 
 const CastleSilhouette = memo(function CastleSilhouette() {
   return (
-    <div className="castle-animated relative flex items-end justify-center select-none">
-      {/* Moon halo behind castle */}
-      <div aria-hidden="true" style={{
-        position: "absolute", width: 340, height: 340, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(180,210,255,0.10) 0%, rgba(74,127,193,0.12) 35%, rgba(20,50,120,0.06) 60%, transparent 75%)",
-        top: "2%", left: "50%", transform: "translateX(-50%)",
-        animation: "moon-breathe 7s ease-in-out infinite", filter: "blur(28px)", pointerEvents: "none",
-      }} />
-      {/* Blue ambient glow */}
-      <div aria-hidden="true" style={{
-        position: "absolute", width: 220, height: 220, borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(74,127,193,0.22) 0%, transparent 70%)",
-        top: "28%", left: "50%", transform: "translate(-50%,-50%)",
-        animation: "pulse-orb 5s ease-in-out infinite", filter: "blur(32px)", pointerEvents: "none",
-      }} />
-      {/* Gold ground glow */}
-      <div aria-hidden="true" style={{
-        position: "absolute", width: 200, height: 90, borderRadius: "50%",
-        background: "radial-gradient(ellipse, rgba(200,146,42,0.28) 0%, transparent 70%)",
-        bottom: "4%", left: "50%", transform: "translateX(-50%)",
-        animation: "pulse-orb 3.5s ease-in-out 1.2s infinite", filter: "blur(22px)", pointerEvents: "none",
-      }} />
+    <div className="relative flex items-end justify-center select-none">
 
       <svg viewBox="0 0 280 460" width="280" height="460" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
@@ -451,13 +446,6 @@ const CastleSilhouette = memo(function CastleSilhouette() {
           </radialGradient>
         </defs>
 
-        {/* Light beams from main spire (behind castle) */}
-        <polygon points="140,22 112,230 168,230" fill="url(#beamG)"
-          style={{ animation: "beam-pulse 3.5s ease-in-out infinite" }} />
-        <polygon points="140,22 95,280 185,280" fill="url(#beamG)"
-          style={{ animation: "beam-pulse 4.5s ease-in-out 1.8s infinite", opacity: 0.55 }} />
-        <polygon points="140,22 132,160 148,160" fill="url(#beamG)"
-          style={{ animation: "beam-pulse 2.8s ease-in-out 0.6s infinite" }} />
 
         {/* Far-left turret */}
         <polygon points="28,202 51,260 5,260"    fill="url(#spireG)" />
@@ -537,35 +525,17 @@ const CastleSilhouette = memo(function CastleSilhouette() {
         </g>
 
         {/* Star dots at spire tips */}
-        <circle cx="140" cy="4"   r="3.5" fill="#E5AB3A" opacity="0.95" style={{ animation: "star-twinkle 2s ease-in-out infinite" }} />
-        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  style={{ animation: "star-twinkle 2.8s ease-in-out 0.5s infinite" }} />
-        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  style={{ animation: "star-twinkle 3.2s ease-in-out 1s infinite" }} />
-        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  style={{ animation: "star-twinkle 2.5s ease-in-out 0.3s infinite" }} />
-        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  style={{ animation: "star-twinkle 3s ease-in-out 1.5s infinite" }} />
+        <circle cx="140" cy="4"   r="3.5" fill="#E5AB3A" opacity="0.95" />
+        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  />
+        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8"  />
+        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  />
+        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7"  />
 
         {/* Gold trim on main spire */}
         <line x1="140" y1="22" x2="178" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
         <line x1="140" y1="22" x2="102" y2="150" stroke="rgba(200,146,42,0.22)" strokeWidth="0.5" />
       </svg>
 
-      {/* Floating sparkles */}
-      {[
-        { top: "18%", left: "8%",  size: 7, dur: 6, del: 0   },
-        { top: "35%", left: "90%", size: 5, dur: 7, del: 2   },
-        { top: "55%", left: "4%",  size: 4, dur: 8, del: 1   },
-        { top: "12%", left: "82%", size: 8, dur: 5, del: 3   },
-        { top: "68%", left: "92%", size: 5, dur: 9, del: 0.5 },
-        { top: "28%", left: "2%",  size: 3, dur: 7, del: 1.5 },
-        { top: "48%", left: "96%", size: 4, dur: 6, del: 4   },
-      ].map((sp, i) => (
-        <div key={i} aria-hidden="true" style={{
-          position: "absolute", top: sp.top, left: sp.left,
-          width: sp.size, height: sp.size, borderRadius: "50%",
-          backgroundColor: "rgba(200,146,42,0.75)",
-          animation: `float-sm ${sp.dur}s ease-in-out ${sp.del}s infinite`,
-          boxShadow: `0 0 ${sp.size * 2}px rgba(200,146,42,0.55)`,
-        }} />
-      ))}
     </div>
   )
 })
