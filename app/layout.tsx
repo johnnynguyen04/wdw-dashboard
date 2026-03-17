@@ -20,12 +20,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WDW Wait Time Analysis | Data Science Dashboard",
+  title: "Disney World Wait Time Analysis | Data Science Portfolio — Johnny Nguyen",
   description:
-    "Interactive dashboard analyzing 1.75M+ wait time records across 8 attractions at Walt Disney World theme parks (2015–2021). Features ML predictions, seasonal trends, and insider tips.",
+    "A machine learning analysis of 1,754,414 Disney World wait time records (2015–2021). Random Forest model (R²=0.579) with seasonal trends, holiday impact, and live wait-time predictions across 8 attractions.",
   openGraph: {
-    title: "WDW Wait Time Analysis",
-    description: "1.75M+ records analyzed across 4 theme parks with ML predictions",
+    title: "Disney World Wait Time Analysis",
+    description: "1.75M records · 8 attractions · Random Forest ML model · R²=0.579",
     type: "website",
   },
 };

@@ -1,1124 +1,1365 @@
-"use client";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+"use client"
+
+import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react"
 import {
-  motion, AnimatePresence,
-  useMotionValue, useSpring,
-  useScroll, useTransform,
-} from "framer-motion";
+  motion,
+  useMotionValue,
+  useTransform,
+  useSpring,
+  AnimatePresence,
+  useScroll,
+  useInView,
+  animate,
+} from "framer-motion"
 import {
-  Rocket, Guitar, Dog, Orbit, Pickaxe, Wind, CloudSun, Swords,
-  LayoutDashboard, BarChart3, Brain, Calendar, Clapperboard,
-  TrendingUp, Clock, Sparkles, MapPin, ChevronRight, Info,
-} from "lucide-react";
+  Clock,
+  TrendingDown,
+  Brain,
+  ArrowRight,
+  Calendar,
+  Star,
+  Zap,
+  Info,
+  CheckCircle2,
+  AlertTriangle,
+} from "lucide-react"
 
-/* ── Motion Variants ── */
-const stagger = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.08, delayChildren: 0.05 } },
-};
-const cardVar = {
-  hidden: { opacity: 0, y: 20, scale: 0.98 },
-  show: {
-    opacity: 1, y: 0, scale: 1,
-    transition: { type: "spring" as const, stiffness: 100, damping: 18 },
-  },
-};
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const } },
-};
+// ================================================================
+// DATA CONSTANTS
+// ================================================================
 
-/* ── Cursor Spotlight ── */
-function CursorSpotlight() {
-  const [pos, setPos] = useState({ x: -999, y: -999 });
-  const [active, setActive] = useState(false);
+const RIDES = [
+  { id: "tsm",    name: "Toy Story Mania",          park: "Hollywood Studios", avg: 54,  median: 50,  std: 30 },
+  { id: "rnr",    name: "Rock 'n' Roller Coaster",  park: "Hollywood Studios", avg: 59,  median: 55,  std: 32 },
+  { id: "sdd",    name: "Slinky Dog Dash",           park: "Hollywood Studios", avg: 73,  median: 70,  std: 28 },
+  { id: "ass",    name: "Alien Swirling Saucers",    park: "Hollywood Studios", avg: 30,  median: 30,  std: 16 },
+  { id: "sdmt",   name: "Seven Dwarfs Mine Train",   park: "Magic Kingdom",    avg: 77,  median: 70,  std: 34 },
+  { id: "fop",    name: "Flight of Passage",         park: "Animal Kingdom",   avg: 115, median: 115, std: 54 },
+  { id: "soarin", name: "Soarin'",                   park: "EPCOT",            avg: 46,  median: 40,  std: 27 },
+  { id: "potc",   name: "Pirates of the Caribbean",  park: "Magic Kingdom",    avg: 29,  median: 25,  std: 18 },
+] as const
 
-  useEffect(() => {
-    const move = (e: MouseEvent) => { setPos({ x: e.clientX, y: e.clientY }); setActive(true); };
-    const leave = () => setActive(false);
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseleave", leave);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseleave", leave); };
-  }, []);
+const PARK_META: Record<string, { color: string; bg: string; border: string; abbrev: string }> = {
+  "Hollywood Studios": { color: "#C8922A", bg: "rgba(200,146,42,0.08)",  border: "rgba(200,146,42,0.28)", abbrev: "DHS" },
+  "Magic Kingdom":     { color: "#4A7FC1", bg: "rgba(74,127,193,0.08)",  border: "rgba(74,127,193,0.28)", abbrev: "MK"  },
+  "Animal Kingdom":    { color: "#5A9E6F", bg: "rgba(90,158,111,0.08)",  border: "rgba(90,158,111,0.28)", abbrev: "DAK" },
+  "EPCOT":             { color: "#8B6BB5", bg: "rgba(139,107,181,0.08)", border: "rgba(139,107,181,0.28)", abbrev: "EP" },
+}
 
+const DAYS = [
+  { day: "Mon", avg: 61.8 },
+  { day: "Tue", avg: 59.3 },
+  { day: "Wed", avg: 56.2 },
+  { day: "Thu", avg: 60.1 },
+  { day: "Fri", avg: 65.7 },
+  { day: "Sat", avg: 72.4 },
+  { day: "Sun", avg: 70.8 },
+]
+
+const HOLIDAYS = [
+  { name: "Christmas / New Year's", impact: 43, period: "Dec 25 – Jan 1"       },
+  { name: "Thanksgiving",           impact: 25, period: "Late November"         },
+  { name: "Spring Break",           impact: 22, period: "March – April"         },
+  { name: "Summer Peak",            impact: 12, period: "June – August"         },
+  { name: "Columbus Day Weekend",   impact: 8,  period: "Second Mon in Oct"     },
+]
+
+const SEASONS = [
+  { name: "Winter", avg: 65.2, months: "Dec–Feb", best: false },
+  { name: "Spring", avg: 72.8, months: "Mar–May", best: false },
+  { name: "Summer", avg: 74.1, months: "Jun–Aug", best: false },
+  { name: "Fall",   avg: 58.9, months: "Sep–Nov", best: true  },
+]
+
+const HS_HOURLY: Record<string, number[]> = {
+  "Toy Story Mania":         [45,50,60,68,72,75,70,65,58,50,40,35,30,28],
+  "Rock 'n' Roller Coaster": [40,50,62,70,75,78,72,65,55,48,40,35,30,28],
+  "Slinky Dog Dash":         [35,50,68,78,88,92,88,80,70,60,48,40,32,28],
+  "Alien Swirling Saucers":  [18,22,28,32,36,38,35,30,26,22,18,15,12,10],
+}
+
+const HOURS_LABELS = ["8AM","9AM","10AM","11AM","12PM","1PM","2PM","3PM","4PM","5PM","6PM","7PM","8PM","9PM"]
+
+const MONTHS = [
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December",
+]
+
+const MONTH_FACTORS = [0.85,0.80,1.15,1.20,1.10,1.25,1.30,1.28,0.90,0.85,0.82,1.35]
+
+const FEATURE_IMPORTANCE = [
+  { feature: "Attraction",     pct: 80.3 },
+  { feature: "Month",          pct: 10.0 },
+  { feature: "Day of Week",    pct:  4.9 },
+  { feature: "Holiday Status", pct:  4.2 },
+  { feature: "Weekend",        pct:  0.7 },
+]
+
+const NAV_ITEMS = [
+  { id: "overview", label: "Overview"   },
+  { id: "rides",    label: "By Ride"    },
+  { id: "predict",  label: "Predict"    },
+  { id: "timing",   label: "When to Go" },
+  { id: "studios",  label: "Studios"    },
+]
+
+// ================================================================
+// UTILITIES
+// ================================================================
+
+function getHeatColor(value: number): string {
+  const ratio = Math.max(0, Math.min(1, (value - 10) / 82))
+  if (ratio < 0.4) {
+    const t = ratio / 0.4
+    return `rgba(${Math.round(42 + 138 * t)}, ${Math.round(150 - 10 * t)}, ${Math.round(68 - 20 * t)}, 0.88)`
+  } else if (ratio < 0.7) {
+    const t = (ratio - 0.4) / 0.3
+    return `rgba(${Math.round(180 + 20 * t)}, ${Math.round(140 - 60 * t)}, ${Math.round(48 - 20 * t)}, 0.88)`
+  } else {
+    const t = (ratio - 0.7) / 0.3
+    return `rgba(${Math.round(200 - 40 * t)}, ${Math.round(80 - 50 * t)}, ${Math.round(28 - 10 * t)}, 0.88)`
+  }
+}
+
+function predictWait(
+  rideName: string, month: number, dayOfWeek: number, isHoliday: boolean,
+): { prediction: number; range: [number, number]; confidence: number } {
+  const ride       = RIDES.find((r) => r.name === rideName) ?? RIDES[0]
+  const dayFactors = [0.88,0.84,0.80,0.85,0.93,1.03,1.01]
+  const prediction = Math.round(ride.avg * MONTH_FACTORS[month] * dayFactors[dayOfWeek] * (isHoliday ? 1.30 : 1.0))
+  const margin     = Math.round(ride.std * 0.55)
+  const confidence = Math.round(Math.max(55, Math.min(91, 72 - (ride.std / ride.avg) * 30)))
+  return { prediction, range: [Math.max(5, prediction - margin), prediction + margin], confidence }
+}
+
+function getWaitCategory(min: number): { label: string; color: string; icon: React.ReactNode } {
+  if (min < 30) return { label: "Short Wait",    color: "#5A9E6F", icon: <CheckCircle2 size={13} /> }
+  if (min < 60) return { label: "Moderate Wait", color: "#C8922A", icon: <Clock size={13} /> }
+  if (min < 90) return { label: "Long Wait",     color: "#C8602A", icon: <AlertTriangle size={13} /> }
+  return              { label: "Very Long",      color: "#C83A2A", icon: <AlertTriangle size={13} /> }
+}
+
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+}
+
+// ================================================================
+// PARTICLE FIELD  (isolated — no parent re-renders)
+// ================================================================
+
+const StarDot = memo(function StarDot({
+  x, y, size, dur, del,
+}: { x: number; y: number; size: number; dur: number; del: number }) {
   return (
     <div
-      className="cursor-spotlight"
+      aria-hidden="true"
+      className="star-particle"
       style={{
-        background: active
-          ? `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(240,180,41,0.055) 0%, rgba(100,80,220,0.025) 40%, transparent 70%)`
-          : "transparent",
-      }}
+        position: "absolute", left: `${x}%`, top: `${y}%`,
+        width: size, height: size, borderRadius: "50%",
+        backgroundColor: "white", opacity: 0,
+        "--dur": `${dur}s`, "--del": `${del}s`,
+      } as React.CSSProperties}
     />
-  );
-}
+  )
+})
 
-/* ── Castle Logo ── */
-function CastleLogo({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <svg viewBox="0 0 48 40" fill="currentColor" className={className} style={style} aria-hidden="true">
-      <rect x="4"  y="14" width="4" height="20" rx="0.5" opacity="0.9" />
-      <rect x="40" y="14" width="4" height="20" rx="0.5" opacity="0.9" />
-      <rect x="14" y="10" width="4" height="24" rx="0.5" />
-      <rect x="30" y="10" width="4" height="24" rx="0.5" />
-      <rect x="21" y="4"  width="6" height="30" rx="0.5" />
-      <polygon points="5,14 6,8 7.5,14"     opacity="0.85" />
-      <polygon points="41,14 42,8 43.5,14"  opacity="0.85" />
-      <polygon points="15,10 16,4 17.5,10"  />
-      <polygon points="31,10 32,4 33.5,10"  />
-      <polygon points="22.5,4 24,0 25.5,4"  />
-      <rect x="8"  y="26" width="32" height="8" rx="1" opacity="0.7" />
-      <rect x="20" y="28" width="8"  height="6" rx="4" fill="#050812" />
-      <polygon points="24,-3 28,-4.5 24,-6" opacity="0.7" />
-    </svg>
-  );
-}
+const ParticleField = memo(function ParticleField() {
+  const stars = useMemo(() =>
+    Array.from({ length: 88 }, (_, i) => ({
+      id: i, x: Math.random() * 100, y: Math.random() * 100,
+      size: Math.random() * 2.2 + 0.4,
+      dur: Math.random() * 4 + 2,
+      del: Math.random() * 8,
+    })), [])
 
-/* ── Sparkle / Star Field ── */
-function SparkleField() {
-  const particles = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 28; i++) {
-      arr.push({
-        left: `${5 + Math.random() * 90}%`,
-        bottom: `${Math.random() * 42}%`,
-        delay: `${Math.random() * 5}s`,
-        duration: `${2 + Math.random() * 3}s`,
-        size: 1.5 + Math.random() * 2.5,
-        opacity: 0.25 + Math.random() * 0.5,
-      });
-    }
-    return arr;
-  }, []);
-
-  const stars = useMemo(() => {
-    const arr = [];
-    for (let i = 0; i < 65; i++) {
-      arr.push({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 90}%`,
-        delay: `${Math.random() * 6}s`,
-        duration: `${2 + Math.random() * 4}s`,
-        size: Math.random() < 0.15 ? 2.5 : Math.random() < 0.4 ? 1.5 : 1,
-        opacity: 0.1 + Math.random() * 0.55,
-      });
-    }
-    return arr;
-  }, []);
+  const sparkles = useMemo(() =>
+    Array.from({ length: 14 }, (_, i) => ({
+      id: i, x: Math.random() * 100,
+      size: Math.random() * 3.5 + 1.5,
+      dur: Math.random() * 9 + 7,
+      del: Math.random() * 9,
+    })), [])
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {particles.map((p, i) => (
+    <div aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
+      {stars.map((s) => <StarDot key={s.id} {...s} />)}
+      {sparkles.map((s) => (
         <div
-          key={`p-${i}`}
-          className="sparkle-particle"
+          key={s.id}
           style={{
-            left: p.left, bottom: p.bottom,
-            animationDelay: p.delay,
-            animationDuration: p.duration,
-            width: p.size, height: p.size,
-            opacity: p.opacity,
-          }}
-        />
-      ))}
-      {stars.map((s, i) => (
-        <div
-          key={`s-${i}`}
-          className="star-dot"
-          style={{
-            left: s.left, top: s.top,
-            animationDelay: s.delay,
-            animationDuration: s.duration,
-            width: s.size, height: s.size,
-            opacity: s.opacity,
+            position: "absolute", left: `${s.x}%`, bottom: -12,
+            width: s.size, height: s.size, borderRadius: "50%",
+            backgroundColor: "rgba(200,146,42,0.55)",
+            animation: `drift-up ${s.dur}s ease-in-out ${s.del}s infinite`,
+            willChange: "transform, opacity",
           }}
         />
       ))}
     </div>
-  );
-}
+  )
+})
 
-/* ── 3D Tilt Card ── */
-function TiltCard({
-  children, className, style,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const sheenRef = useRef<HTMLDivElement>(null);
-  const rotX = useMotionValue(0);
-  const rotY = useMotionValue(0);
-  const springX = useSpring(rotX, { stiffness: 200, damping: 20 });
-  const springY = useSpring(rotY, { stiffness: 200, damping: 20 });
+// ================================================================
+// CURSOR SPOTLIGHT  (direct DOM — zero React re-renders)
+// ================================================================
+
+const CursorSpotlight = memo(function CursorSpotlight() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      if (ref.current)
+        ref.current.style.background =
+          `radial-gradient(700px circle at ${e.clientX}px ${e.clientY}px, rgba(200,146,42,0.035), transparent 65%)`
+    }
+    window.addEventListener("mousemove", move, { passive: true })
+    return () => window.removeEventListener("mousemove", move)
+  }, [])
+  return <div ref={ref} aria-hidden="true" style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1 }} />
+})
+
+// ================================================================
+// TILT CARD  (useMotionValue only — no useState)
+// ================================================================
+
+const TiltCard = memo(function TiltCard({
+  children, className = "", intensity = 7,
+}: { children: React.ReactNode; className?: string; intensity?: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const mx  = useMotionValue(0)
+  const my  = useMotionValue(0)
+  const rx  = useSpring(useTransform(my, [-0.5, 0.5], [ intensity, -intensity]), { stiffness: 220, damping: 28 })
+  const ry  = useSpring(useTransform(mx, [-0.5, 0.5], [-intensity,  intensity]), { stiffness: 220, damping: 28 })
 
   const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const el = ref.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const nx = (e.clientX - r.left) / r.width;
-    const ny = (e.clientY - r.top)  / r.height;
-    rotX.set((ny - 0.5) * -12);
-    rotY.set((nx - 0.5) *  12);
-    if (sheenRef.current) {
-      sheenRef.current.style.setProperty("--mx", `${nx * 100}%`);
-      sheenRef.current.style.setProperty("--my", `${ny * 100}%`);
-      sheenRef.current.classList.add("tilt-sheen-visible");
-    }
-  }, [rotX, rotY]);
-
-  const onLeave = useCallback(() => {
-    rotX.set(0); rotY.set(0);
-    sheenRef.current?.classList.remove("tilt-sheen-visible");
-  }, [rotX, rotY]);
+    if (!ref.current) return
+    const r = ref.current.getBoundingClientRect()
+    mx.set((e.clientX - r.left) / r.width  - 0.5)
+    my.set((e.clientY - r.top)  / r.height - 0.5)
+  }, [mx, my])
+  const onLeave = useCallback(() => { mx.set(0); my.set(0) }, [mx, my])
 
   return (
     <motion.div
       ref={ref}
-      variants={cardVar}
-      whileInView="show"
-      initial="hidden"
-      viewport={{ once: true, margin: "-40px" }}
-      style={{ rotateX: springX, rotateY: springY, transformStyle: "preserve-3d", position: "relative", ...style }}
+      style={{ rotateX: rx, rotateY: ry, transformStyle: "preserve-3d" }}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      whileHover={{ scale: 1.007, z: 8 }}
       className={className}
     >
-      <div ref={sheenRef} className="tilt-sheen" />
       {children}
     </motion.div>
-  );
-}
+  )
+})
 
-/* ── Animated Counter ── */
-function AnimatedCounter({ to }: { to: number }) {
-  const [val, setVal] = useState(0);
-  useEffect(() => {
-    const dur = 1500;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min((now - start) / dur, 1);
-      const ease = 1 - Math.pow(1 - t, 4);
-      setVal(Math.round(ease * to));
-      if (t < 1) requestAnimationFrame(tick);
-    };
-    const id = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(id);
-  }, [to]);
-  return <>{val.toLocaleString()}</>;
-}
+// ================================================================
+// ANIMATED COUNTER
+// ================================================================
 
-/* ── Data ── */
-const RIDE_ICONS: Record<number, React.ReactNode> = {
-  0: <Rocket   size={15} />,
-  1: <Guitar   size={15} />,
-  2: <Dog      size={15} />,
-  3: <Orbit    size={15} />,
-  4: <Pickaxe  size={15} />,
-  5: <Wind     size={15} />,
-  6: <CloudSun size={15} />,
-  7: <Swords   size={15} />,
-};
-
-const RIDES = [
-  { id: 0, name: "Toy Story Mania",          park: "Hollywood Studios", avg: 54,  median: 50,  std: 30 },
-  { id: 1, name: "Rock 'n' Roller Coaster",  park: "Hollywood Studios", avg: 59,  median: 55,  std: 32 },
-  { id: 2, name: "Slinky Dog Dash",          park: "Hollywood Studios", avg: 73,  median: 70,  std: 28 },
-  { id: 3, name: "Alien Swirling Saucers",   park: "Hollywood Studios", avg: 30,  median: 30,  std: 16 },
-  { id: 4, name: "Seven Dwarfs Mine Train",  park: "Magic Kingdom",    avg: 77,  median: 70,  std: 34 },
-  { id: 5, name: "Flight of Passage",        park: "Animal Kingdom",   avg: 115, median: 115, std: 54 },
-  { id: 6, name: "Soarin'",                  park: "EPCOT",            avg: 46,  median: 40,  std: 27 },
-  { id: 7, name: "Pirates of the Caribbean", park: "Magic Kingdom",    avg: 29,  median: 25,  std: 18 },
-];
-const SORTED_RIDES = [...RIDES].sort((a, b) => b.avg - a.avg);
-
-const DAY_DATA = [
-  { day: "Mon", avg: 62.3 }, { day: "Tue", avg: 58.4 }, { day: "Wed", avg: 56.2 },
-  { day: "Thu", avg: 56.8 }, { day: "Fri", avg: 58.0 }, { day: "Sat", avg: 62.5 },
-  { day: "Sun", avg: 59.0 },
-];
-const HOLIDAYS = [
-  { period: "Christmas/New Years", avg: 79, pct: 43 },
-  { period: "Thanksgiving",        avg: 68, pct: 25 },
-  { period: "Spring Break",        avg: 67, pct: 22 },
-  { period: "Summer Peak",         avg: 62, pct: 12 },
-  { period: "Regular",             avg: 55, pct: 0  },
-];
-const SEASONS = [
-  { season: "Winter", avg: 65 }, { season: "Spring", avg: 61 },
-  { season: "Summer", avg: 60 }, { season: "Fall",   avg: 51 },
-];
-const PARK_COLORS: Record<string, string> = {
-  "Hollywood Studios": "#D4A843",
-  "Magic Kingdom":     "#7B8CDE",
-  "Animal Kingdom":    "#6BBF7A",
-  "EPCOT":             "#C17BDB",
-};
-const MONTHS    = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const DAYS_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-const HOURS_LIST = [8,9,10,11,12,13,14,15,16,17,18,19,20,21];
-const HS_HOURLY: Record<string, number[]> = {
-  "Slinky Dog Dash":        [59,79,80,84,82,80,81,66,66,78,74,70,66,61],
-  "Toy Story Mania":        [30,46,61,63,62,63,66,63,60,55,60,52,45,34],
-  "Rock 'n' Roller Coaster":[24,42,66,72,66,66,66,70,66,66,60,59,55,50],
-  "Alien Swirling Saucers": [18,27,39,41,39,36,36,35,33,30,27,26,22,15],
-};
-
-/* ── Helpers ── */
-function getPrediction(rideId: number, month: number, dow: number, holiday: number): number {
-  const bases       = [54,59,73,30,77,115,46,29];
-  const monthFactor = [1.1,1.15,1.25,1.15,1.05,1.2,1.3,1.1,0.75,0.85,1.0,1.2];
-  const dowFactor   = [1.03,0.97,0.93,0.94,0.96,1.04,0.98];
-  const base = bases[rideId] * monthFactor[month - 1] * dowFactor[dow];
-  return Math.round(holiday ? base * 1.3 : base);
-}
-function getWaitColor(m: number) {
-  if (m <= 30) return "#6BBF7A";
-  if (m <= 50) return "#A3C96B";
-  if (m <= 70) return "#D4A843";
-  if (m <= 90) return "#D48443";
-  return "#D45A43";
-}
-function getWaitLabel(m: number) {
-  if (m <= 30) return "Low";
-  if (m <= 50) return "Moderate";
-  if (m <= 70) return "High";
-  if (m <= 90) return "Very High";
-  return "Extreme";
-}
-
-/* ── Animated Bar ── */
-function AnimatedBar({ value, max, color, delay = 0 }: {
-  value: number; max: number; color: string; delay?: number;
-}) {
-  const [w, setW] = useState(0);
-  useEffect(() => {
-    const t = setTimeout(() => setW((value / max) * 100), 80 + delay);
-    return () => clearTimeout(t);
-  }, [value, max, delay]);
-
-  return (
-    <div className="h-7 rounded-lg overflow-hidden" style={{ background: "rgba(255,255,255,0.04)" }}>
-      <div
-        className="h-full rounded-lg relative overflow-hidden"
-        style={{
-          width: `${w}%`,
-          background: `linear-gradient(90deg, ${color}88, ${color})`,
-          transition: "width 0.9s cubic-bezier(0.16,1,0.3,1)",
-          boxShadow: `0 0 14px ${color}35`,
-        }}
-      >
-        <div
-          style={{
-            position: "absolute", inset: 0,
-            background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)",
-            backgroundSize: "200% 100%",
-            animation: w > 0 ? "shimmer 2.5s ease infinite" : "none",
-            opacity: 0.4,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/* ── Section Header ── */
-function SectionHeader({ icon, title, subtitle }: {
-  icon: React.ReactNode; title: string; subtitle?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3 mb-5">
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-        style={{ background: "rgba(240,180,41,0.1)", color: "#F0B429" }}
-      >
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-sm font-semibold text-white" style={{ fontFamily: "var(--font-outfit)" }}>
-          {title}
-        </h3>
-        {subtitle && <p className="text-xs text-gray-600 mt-0.5">{subtitle}</p>}
-      </div>
-    </div>
-  );
-}
-
-/* ── Prediction Tab ── */
-function PredictionTab() {
-  const [ride, setRide]       = useState(0);
-  const [month, setMonth]     = useState(6);
-  const [dow, setDow]         = useState(2);
-  const [holiday, setHoliday] = useState(0);
-  const [show, setShow]       = useState(false);
-
-  const pred     = getPrediction(ride, month, dow, holiday);
-  const rideInfo = RIDES[ride];
-  const allDow   = DAYS_FULL.map((_, i) => getPrediction(ride, month, i, holiday));
-  const bestDow  = allDow.indexOf(Math.min(...allDow));
-  const savings  = pred - allDow[bestDow];
+const AnimatedCounter = memo(function AnimatedCounter({
+  value, format = (n: number) => n.toLocaleString(), className = "",
+}: { value: number; format?: (n: number) => string; className?: string }) {
+  const ref      = useRef<HTMLSpanElement>(null)
+  const mv       = useMotionValue(0)
+  const displayed = useTransform(mv, (v) => format(Math.round(v)))
+  const inView   = useInView(ref, { once: true, margin: "-80px" })
 
   useEffect(() => {
-    setShow(false);
-    const t = setTimeout(() => setShow(true), 200);
-    return () => clearTimeout(t);
-  }, [ride, month, dow, holiday]);
+    if (!inView) return
+    const ctrl = animate(mv, value, { duration: 1.8, ease: [0.16, 1, 0.3, 1] })
+    return ctrl.stop
+  }, [inView, value, mv])
 
-  const selStyle = { background: "var(--bg-card)", borderColor: "rgba(255,255,255,0.08)", color: "#e8e6f0" };
-  const selClass = "w-full rounded-xl px-3 py-2.5 text-sm border focus:outline-none focus:border-[#F0B429] focus:ring-1 focus:ring-[#F0B429]/20 transition-all duration-200";
+  return <motion.span ref={ref} className={className}>{displayed}</motion.span>
+})
 
+// ================================================================
+// PARK BADGE
+// ================================================================
+
+function ParkBadge({ park }: { park: string }) {
+  const m = PARK_META[park]
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show">
-      <TiltCard className="glass-card rounded-2xl p-6 mb-4">
-        <div className="flex items-center gap-3 mb-5 flex-wrap">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "rgba(240,180,41,0.1)" }}>
-            <Brain size={15} style={{ color: "#F0B429" }} />
-          </div>
-          <h3 className="text-sm font-semibold text-white flex-1" style={{ fontFamily: "var(--font-outfit)" }}>
-            Wait time predictor
-          </h3>
-          <span
-            className="text-xs px-3 py-1 rounded-full font-medium"
-            style={{ background: "rgba(240,180,41,0.1)", color: "#F0B429", border: "1px solid rgba(240,180,41,0.22)" }}
-          >
-            Random Forest · R² = 0.58
-          </span>
-        </div>
+    <span
+      className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded-sm inline-block"
+      style={{ color: m?.color, backgroundColor: m?.bg, border: `1px solid ${m?.border}` }}
+    >
+      {m?.abbrev ?? park}
+    </span>
+  )
+}
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          {[
-            { label: "Attraction",   value: ride,    onChange: (v: number) => setRide(v),    options: RIDES.map(r => ({ v: r.id, l: r.name })) },
-            { label: "Month",        value: month,   onChange: (v: number) => setMonth(v),   options: MONTHS.map((m,i) => ({ v: i+1, l: m })) },
-            { label: "Day of week",  value: dow,     onChange: (v: number) => setDow(v),     options: DAYS_FULL.map((d,i) => ({ v: i, l: d })) },
-            { label: "Holiday?",     value: holiday, onChange: (v: number) => setHoliday(v), options: [{ v:0, l:"Regular" }, { v:1, l:"Holiday period" }] },
-          ].map(field => (
-            <div key={field.label}>
-              <label className="block mb-1.5 font-semibold tracking-widest uppercase" style={{ fontSize:"9px", color:"rgba(255,255,255,0.35)" }}>
-                {field.label}
-              </label>
-              <select
-                value={field.value}
-                onChange={e => field.onChange(Number(e.target.value))}
-                className={selClass}
-                style={selStyle}
-              >
-                {field.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
-              </select>
-            </div>
-          ))}
-        </div>
+// ================================================================
+// SECTION HEADER
+// ================================================================
 
-        <div className={`transition-all duration-400 ${show ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}>
-          <div
-            className="rounded-2xl p-6 text-center relative overflow-hidden"
-            style={{
-              background: "linear-gradient(135deg, rgba(15,20,48,0.95), rgba(10,14,36,0.95))",
-              border: `1px solid ${getWaitColor(pred)}28`,
-              boxShadow: `0 0 50px ${getWaitColor(pred)}12, inset 0 1px 0 rgba(255,255,255,0.05)`,
-            }}
-          >
-            <div className="text-xs tracking-widest mb-3 font-semibold uppercase" style={{ color:"rgba(255,255,255,0.3)" }}>
-              Predicted wait time
-            </div>
-            <div className="flex items-center justify-center gap-3 mb-3">
-              <span style={{ color: getWaitColor(pred), opacity: 0.8 }}>{RIDE_ICONS[ride]}</span>
-              <span
-                className="text-7xl font-black tabular-nums leading-none"
-                style={{
-                  color: getWaitColor(pred),
-                  fontFamily: "var(--font-outfit)",
-                  textShadow: `0 0 40px ${getWaitColor(pred)}55`,
-                }}
-              >
-                <AnimatedCounter to={pred} />
-              </span>
-              <span className="text-xl text-gray-500 font-light self-end pb-1">min</span>
-            </div>
-            <div
-              className="text-xs font-semibold px-4 py-1.5 rounded-full inline-block mb-3"
-              style={{ backgroundColor: getWaitColor(pred)+"18", color: getWaitColor(pred), border:`1px solid ${getWaitColor(pred)}30` }}
-            >
-              {getWaitLabel(pred)} wait
-            </div>
-            <div className="text-xs" style={{ color:"rgba(255,255,255,0.25)" }}>
-              {rideInfo.name} · {MONTHS[month-1]} · {DAYS_FULL[dow]} · {holiday ? "Holiday" : "Regular"}
-            </div>
-          </div>
-
-          {savings > 0 && dow !== bestDow && (
-            <div
-              className="flex items-start gap-3 mt-3 p-3.5 rounded-xl text-xs"
-              style={{ background:"rgba(107,191,122,0.06)", border:"1px solid rgba(107,191,122,0.14)" }}
-            >
-              <Info size={14} className="text-green-400 mt-0.5 shrink-0" />
-              <span className="text-gray-400">
-                <span className="text-green-400 font-semibold">Tip: </span>
-                Save ~{savings} min by visiting on {DAYS_FULL[bestDow]} instead
-              </span>
-            </div>
-          )}
-        </div>
-      </TiltCard>
-
-      <motion.div variants={stagger} className="grid md:grid-cols-2 gap-4">
-        <TiltCard className="glass-card rounded-2xl p-5">
-          <SectionHeader icon={<TrendingUp size={13} />} title="Model performance" />
-          <div className="space-y-0">
-            {[
-              { l: "Algorithm",         v: "Random Forest",  c: "#D4A843" },
-              { l: "R² Score",          v: "0.579",          c: "#6BBF7A" },
-              { l: "Mean Abs. Error",   v: "±15 min",        c: "#D4A843" },
-              { l: "Training Records",  v: "1,754,414",      c: "#7B8CDE" },
-            ].map(item => (
-              <div key={item.l} className="flex justify-between items-center py-2.5" style={{ borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
-                <span className="text-xs text-gray-500">{item.l}</span>
-                <span className="text-sm font-mono font-bold tabular-nums" style={{ color:item.c }}>{item.v}</span>
-              </div>
-            ))}
-          </div>
-        </TiltCard>
-
-        <TiltCard className="glass-card rounded-2xl p-5">
-          <SectionHeader icon={<BarChart3 size={13} />} title="Feature importance" />
-          <div className="space-y-3.5">
-            {[
-              { f:"Attraction",    v:80.3, c:"#F0B429" },
-              { f:"Month",         v:10.0, c:"#7B8CDE" },
-              { f:"Day of Week",   v:4.9,  c:"#6BBF7A" },
-              { f:"Holiday Status",v:4.2,  c:"#C17BDB" },
-              { f:"Weekend",       v:0.7,  c:"#D45A43" },
-            ].map(item => (
-              <div key={item.f}>
-                <div className="flex justify-between text-xs mb-1.5">
-                  <span className="text-gray-500">{item.f}</span>
-                  <span className="font-bold tabular-nums" style={{ color:item.c }}>{item.v}%</span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background:"rgba(255,255,255,0.05)" }}>
-                  <motion.div
-                    className="h-full rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width:`${item.v}%` }}
-                    transition={{ duration:1.1, delay:0.3, ease:[0.16,1,0.3,1] as const }}
-                    style={{ background:`linear-gradient(90deg, ${item.c}70, ${item.c})`, boxShadow:`0 0 8px ${item.c}40` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </TiltCard>
-      </motion.div>
+function SectionHeader({ label, title, subtitle }: { label: string; title: string; subtitle?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+      className="mb-12"
+    >
+      <span className="text-[11px] font-semibold tracking-[0.22em] uppercase text-[#C8922A] mb-3 block">
+        {label}
+      </span>
+      <h2 className="text-4xl md:text-5xl font-bold text-[#EDE9E3] tracking-tight leading-none mb-4">
+        {title}
+      </h2>
+      {subtitle && (
+        <p className="text-[#7D93B2] text-lg max-w-[52ch] leading-relaxed">{subtitle}</p>
+      )}
     </motion.div>
-  );
+  )
 }
 
+// ================================================================
+// FAIRY-TALE CASTLE SVG
+// ================================================================
 
-/* ── Park Photos (used as card backdrops) ── */
-const PARK_PHOTOS: Record<string, string> = {
-  "Hollywood Studios": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=800&q=60&fit=crop&auto=format",
-  "Magic Kingdom":     "https://images.unsplash.com/photo-1563728991033-dc78f6e4fdb5?w=800&q=60&fit=crop&auto=format",
-  "Animal Kingdom":    "https://images.unsplash.com/photo-1474511320723-9a56873867b5?w=800&q=60&fit=crop&auto=format",
-  "EPCOT":             "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&q=60&fit=crop&auto=format",
-};
+const CastleSilhouette = memo(function CastleSilhouette() {
+  return (
+    <div className="castle-animated relative flex items-end justify-center select-none">
+      {/* Ambient glow orbs */}
+      <div aria-hidden="true" style={{
+        position: "absolute", width: 220, height: 220, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(74,127,193,0.18) 0%, transparent 70%)",
+        top: "28%", left: "50%", transform: "translate(-50%,-50%)",
+        animation: "pulse-orb 5s ease-in-out infinite", filter: "blur(32px)", pointerEvents: "none",
+      }} />
+      <div aria-hidden="true" style={{
+        position: "absolute", width: 170, height: 80, borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(200,146,42,0.22) 0%, transparent 70%)",
+        bottom: "6%", left: "50%", transform: "translateX(-50%)",
+        animation: "pulse-orb 3.5s ease-in-out 1.2s infinite", filter: "blur(22px)", pointerEvents: "none",
+      }} />
 
-/* ── Main Dashboard ── */
-export default function Dashboard() {
-  const [tab, setTab]       = useState("overview");
-  const [mounted, setMounted] = useState(false);
+      <svg viewBox="0 0 280 450" width="280" height="450" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="bodyG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#0D2A5C" />
+            <stop offset="100%" stopColor="#071626" />
+          </linearGradient>
+          <linearGradient id="spireG" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#1A4B9C" />
+            <stop offset="100%" stopColor="#0D2A5C" />
+          </linearGradient>
+        </defs>
 
-  const heroRef = useRef<HTMLElement>(null);
-  const { scrollY } = useScroll();
-  const heroImgY  = useTransform(scrollY, [0, 400], [0, 80]);
-  const heroTextY = useTransform(scrollY, [0, 400], [0, 30]);
-  const heroOpacity = useTransform(scrollY, [0, 280], [1, 0.3]);
+        {/* Far-left turret */}
+        <polygon points="28,202 51,260 5,260"    fill="url(#spireG)" />
+        <rect x="5"   y="260" width="46" height="140" fill="url(#bodyG)" />
+        <rect x="5"  y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="15" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="25" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="35" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="45" y="254" width="6" height="9" fill="url(#spireG)" />
 
-  useEffect(() => { setMounted(true); }, []);
+        {/* Far-right turret */}
+        <polygon points="252,202 275,260 229,260" fill="url(#spireG)" />
+        <rect x="229" y="260" width="46" height="140" fill="url(#bodyG)" />
+        <rect x="229" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="239" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="249" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="259" y="254" width="8" height="9" fill="url(#spireG)" />
+        <rect x="269" y="254" width="6" height="9" fill="url(#spireG)" />
 
-  const tabs = [
-    { id:"overview",  label:"Overview",    icon:<LayoutDashboard size={13} /> },
-    { id:"rides",     label:"By Ride",     icon:<BarChart3 size={13} />       },
-    { id:"predict",   label:"Predict",     icon:<Brain size={13} />            },
-    { id:"timing",    label:"When to Go",  icon:<Calendar size={13} />         },
-    { id:"hollywood", label:"Studios",     icon:<Clapperboard size={13} />     },
-  ];
+        {/* Left wall */}
+        <rect x="51"  y="338" width="59" height="62" fill="url(#bodyG)" />
+        {/* Right wall */}
+        <rect x="170" y="338" width="59" height="62" fill="url(#bodyG)" />
+
+        {/* Left main tower */}
+        <polygon points="80,112 111,195 49,195"  fill="url(#spireG)" />
+        <rect x="49" y="195" width="62" height="205" fill="url(#bodyG)" />
+        <rect x="49"  y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="61"  y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="73"  y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="85"  y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="97"  y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="103" y="188" width="8" height="10" fill="url(#spireG)" />
+        <rect x="63" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
+        <rect x="79" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
+        <rect x="68" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.15)" />
+
+        {/* Right main tower */}
+        <polygon points="200,112 231,195 169,195" fill="url(#spireG)" />
+        <rect x="169" y="195" width="62" height="205" fill="url(#bodyG)" />
+        <rect x="169" y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="181" y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="193" y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="205" y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="217" y="188" width="9" height="10" fill="url(#spireG)" />
+        <rect x="222" y="188" width="8" height="10" fill="url(#spireG)" />
+        <rect x="183" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
+        <rect x="199" y="215" width="11" height="17" rx="5.5" fill="rgba(200,146,42,0.22)" />
+        <rect x="188" y="258" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.15)" />
+
+        {/* Central tower (tallest) */}
+        <polygon points="140,22 178,150 102,150"  fill="url(#spireG)" />
+        <rect x="102" y="150" width="76" height="250" fill="url(#bodyG)" />
+        <rect x="102" y="143" width="10" height="11" fill="url(#spireG)" />
+        <rect x="115" y="143" width="10" height="11" fill="url(#spireG)" />
+        <rect x="128" y="143" width="10" height="11" fill="url(#spireG)" />
+        <rect x="141" y="143" width="10" height="11" fill="url(#spireG)" />
+        <rect x="154" y="143" width="10" height="11" fill="url(#spireG)" />
+        <rect x="167" y="143" width="11" height="11" fill="url(#spireG)" />
+        <rect x="121" y="172" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.28)" />
+        <rect x="145" y="172" width="14" height="22" rx="7"   fill="rgba(200,146,42,0.28)" />
+        <rect x="127" y="225" width="26" height="36" rx="13"  fill="rgba(200,146,42,0.18)" />
+        <rect x="126" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.15)" />
+        <rect x="141" y="290" width="13" height="20" rx="6.5" fill="rgba(200,146,42,0.15)" />
+
+        {/* Gate arch cutout painted in page background */}
+        <path d="M 108,400 L 108,348 Q 140,316 172,348 L 172,400 Z" fill="#020B18" />
+
+        {/* Ground base */}
+        <rect x="0" y="398" width="280" height="10" fill="url(#bodyG)" />
+
+        {/* Star dots at spire tips */}
+        <circle cx="140" cy="20"  r="4.5" fill="#E5AB3A" opacity="0.9" />
+        <circle cx="80"  cy="110" r="3.5" fill="#E5AB3A" opacity="0.8" />
+        <circle cx="200" cy="110" r="3.5" fill="#E5AB3A" opacity="0.8" />
+        <circle cx="28"  cy="200" r="2.5" fill="#E5AB3A" opacity="0.7" />
+        <circle cx="252" cy="200" r="2.5" fill="#E5AB3A" opacity="0.7" />
+
+        {/* Gold trim edges on main spire */}
+        <line x1="140" y1="22" x2="178" y2="150" stroke="rgba(200,146,42,0.2)" strokeWidth="0.5" />
+        <line x1="140" y1="22" x2="102" y2="150" stroke="rgba(200,146,42,0.2)" strokeWidth="0.5" />
+      </svg>
+
+      {/* Floating sparkles around castle */}
+      {[
+        { top: "22%", left: "10%", size: 6, dur: 6, del: 0   },
+        { top: "38%", left: "88%", size: 5, dur: 7, del: 2   },
+        { top: "58%", left: "6%",  size: 4, dur: 8, del: 1   },
+        { top: "14%", left: "80%", size: 7, dur: 5, del: 3   },
+        { top: "70%", left: "90%", size: 5, dur: 9, del: 0.5 },
+      ].map((sp, i) => (
+        <div key={i} aria-hidden="true" style={{
+          position: "absolute", top: sp.top, left: sp.left,
+          width: sp.size, height: sp.size, borderRadius: "50%",
+          backgroundColor: "rgba(200,146,42,0.7)",
+          animation: `float-sm ${sp.dur}s ease-in-out ${sp.del}s infinite`,
+          boxShadow: "0 0 6px rgba(200,146,42,0.5)",
+        }} />
+      ))}
+    </div>
+  )
+})
+
+// ================================================================
+// NAVIGATION
+// ================================================================
+
+function Navigation({ activeSection }: { activeSection: string }) {
+  const { scrollY } = useScroll()
+  const navBg     = useTransform(scrollY, [0, 80], ["rgba(2,11,24,0.15)", "rgba(2,11,24,0.94)"])
+  const navBorder = useTransform(scrollY, [0, 80], ["rgba(200,146,42,0.0)", "rgba(200,146,42,0.13)"])
 
   return (
-    <div className="min-h-screen" style={{ background:"var(--bg-deep)" }}>
-      {/* Global overlays */}
-      <CursorSpotlight />
-      <div className="noise-overlay" />
-      <div className="ambient-grid fixed inset-0 pointer-events-none" style={{ zIndex:0 }} />
+    <motion.header
+      style={{ backgroundColor: navBg, borderBottomColor: navBorder }}
+      className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-xl"
+    >
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <button onClick={() => scrollTo("hero")} className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-md flex items-center justify-center"
+            style={{ background: "rgba(200,146,42,0.14)", border: "1px solid rgba(200,146,42,0.3)" }}>
+            <Star size={13} style={{ color: "#C8922A" }} />
+          </div>
+          <span className="font-bold text-[15px] text-[#EDE9E3] tracking-tight hidden sm:block">
+            WDW Analysis
+          </span>
+        </button>
 
-      {/* ══════════════════════════════════════════
-          HERO HEADER
-      ══════════════════════════════════════════ */}
-      <header ref={heroRef} className="relative overflow-hidden" style={{ minHeight:300, zIndex: 2 }}>
+        <nav className="flex items-center gap-0.5" aria-label="Sections">
+          {NAV_ITEMS.map((item) => {
+            const active = activeSection === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => scrollTo(item.id)}
+                className="relative px-3.5 py-2 text-sm font-medium rounded-lg transition-colors duration-200"
+                style={{ color: active ? "#EDE9E3" : "#7D93B2" }}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-lg"
+                    style={{ background: "rgba(200,146,42,0.13)", border: "1px solid rgba(200,146,42,0.24)" }}
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10">{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
 
-        {/* Background photo — fireworks night sky (parallax) */}
-        <motion.div
-          className="absolute inset-0 pointer-events-none select-none"
-          style={{ y: heroImgY }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=1920&q=40&auto=format&fit=crop"
-            alt=""
-            aria-hidden="true"
-            className="w-full h-full object-cover"
-            style={{ opacity: 0.18, filter: "blur(0.5px) saturate(1.3)", transform: "scale(1.1)" }}
-          />
-        </motion.div>
+        <div className="hidden md:flex items-center gap-1.5 text-[11px] font-mono text-[#3A506B]">
+          <div className="w-1.5 h-1.5 rounded-full bg-[#5A9E6F] animate-pulse" />
+          1,754,414 records
+        </div>
+      </div>
+    </motion.header>
+  )
+}
 
-        {/* Layered atmospheric background */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background: [
-              "radial-gradient(ellipse 800px 600px at 15% 120%, rgba(110,60,10,0.22) 0%, transparent 65%)",
-              "radial-gradient(ellipse 600px 500px at 85% -20%, rgba(55,35,110,0.14) 0%, transparent 65%)",
-              "radial-gradient(ellipse 500px 400px at 50% 130%, rgba(240,180,41,0.09) 0%, transparent 60%)",
-              "radial-gradient(ellipse 300px 200px at 30% 80%,  rgba(107,70,200,0.07) 0%, transparent 60%)",
-              "linear-gradient(180deg, #060919 0%, #08091c 55%, #0a0d22 100%)",
-            ].join(", "),
-          }}
-        />
+// ================================================================
+// HERO SECTION
+// ================================================================
 
-        {/* Breathing glow orb */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            width:500, height:500, borderRadius:"50%",
-            background:"radial-gradient(circle, rgba(240,180,41,0.065) 0%, transparent 70%)",
-            bottom:-160, left:"50%", transform:"translateX(-50%)",
-            animation:"pulseGlow 5s ease-in-out infinite",
-          }}
-        />
+function HeroSection() {
+  const { scrollY } = useScroll()
+  const castleY     = useTransform(scrollY, [0, 600], [0, -70])
+  const contentY    = useTransform(scrollY, [0, 400], [0, -28])
+  const heroOpacity = useTransform(scrollY, [0, 380], [1, 0])
 
-        {/* Second subtle orb — purple/blue */}
-        <div
-          className="absolute pointer-events-none"
-          style={{
-            width:350, height:350, borderRadius:"50%",
-            background:"radial-gradient(circle, rgba(100,80,220,0.07) 0%, transparent 70%)",
-            top:-80, right:"10%",
-            animation:"pulseGlow 7s ease-in-out infinite",
-            animationDelay:"2s",
-          }}
-        />
+  const containerV = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }
+  const itemV = {
+    hidden:  { opacity: 0, y: 28 },
+    visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 80, damping: 22 } },
+  }
 
-        <SparkleField />
+  return (
+    <section id="hero" className="relative min-h-[100dvh] flex items-center overflow-hidden">
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{
+        background: "radial-gradient(ellipse 70% 60% at 65% 45%, rgba(74,127,193,0.1) 0%, transparent 65%), radial-gradient(ellipse 50% 50% at 28% 60%, rgba(200,146,42,0.05) 0%, transparent 60%)",
+      }} />
 
-        <motion.div
-          className="max-w-5xl mx-auto px-4 sm:px-6 pt-14 pb-6 relative"
-          style={{ y: heroTextY, opacity: heroOpacity }}
-        >
-          <motion.div initial="hidden" animate={mounted ? "show" : "hidden"} variants={stagger}>
+      <div className="max-w-7xl mx-auto px-6 w-full pt-24 pb-16">
+        <div className="grid grid-cols-1 lg:grid-cols-[58%_42%] gap-12 items-center">
 
-            {/* Castle + Title */}
-            <motion.div variants={fadeUp} className="flex items-start gap-4 mb-3">
-              <div className="shrink-0 mt-1">
-                <CastleLogo
-                  className="w-14 h-12 animate-castle-glow"
-                  style={{ color:"#F0B429" }}
-                />
-              </div>
-              <div>
-                <h1
-                  className="text-4xl md:text-5xl lg:text-6xl font-black leading-none gradient-text"
-                  style={{ fontFamily:"var(--font-outfit)", letterSpacing:"-0.028em" }}
-                >
-                  WDW Wait Time Guide
-                </h1>
-                <p className="text-sm md:text-base mt-2" style={{ color:"rgba(255,255,255,0.35)" }}>
-                  Plan smarter days at the parks · 1.75M+ wait time records analyzed
-                </p>
-              </div>
+          {/* Content */}
+          <motion.div style={{ y: contentY }} variants={containerV} initial="hidden" animate="visible" className="relative z-10">
+            <motion.div variants={itemV} className="mb-8">
+              <span className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] uppercase px-4 py-2 rounded-full"
+                style={{ background: "rgba(200,146,42,0.1)", border: "1px solid rgba(200,146,42,0.25)", color: "#C8922A" }}>
+                <Star size={11} />
+                Data Science · Disney World · 2015 – 2021
+                <Star size={11} />
+              </span>
             </motion.div>
 
-            {/* Stat badges */}
-            <motion.div variants={fadeUp} className="flex flex-wrap gap-2 mb-5 ml-18">
+            <motion.div variants={itemV} className="mb-6">
+              <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.95] text-[#EDE9E3]">
+                The Science<br />
+                of{" "}
+                <span className="shimmer-gold">Disney</span>
+                <br />
+                Magic.
+              </h1>
+            </motion.div>
+
+            <motion.p variants={itemV} className="text-[#7D93B2] text-lg leading-relaxed max-w-[46ch] mb-10">
+              A Random Forest machine learning analysis of{" "}
+              <span style={{ color: "#EDE9E3", fontWeight: 600 }}>1,754,414 wait-time records</span>{" "}
+              across 8 attractions and 4 parks — revealing exactly when to go, what to skip, and what to ride first.
+            </motion.p>
+
+            <motion.div variants={itemV} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
               {[
-                { tag:"8 attractions", color:"rgba(212,168,67,0.7)"  },
-                { tag:"4 parks",       color:"rgba(107,191,122,0.7)" },
-                { tag:"2015 – 2021",   color:"rgba(123,140,222,0.7)" },
-                { tag:"ML predictions",color:"rgba(193,123,219,0.7)" },
-              ].map(({ tag, color }, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                  style={{
-                    background:"rgba(255,255,255,0.04)",
-                    color,
-                    border:"1px solid rgba(255,255,255,0.07)",
-                    backdropFilter:"blur(8px)",
-                  }}
-                >
-                  {tag}
-                </span>
+                { value: 1754414, label: "Records",    fmt: (n: number) => (n / 1e6).toFixed(2) + "M" },
+                { value: 8,       label: "Attractions", fmt: (n: number) => n.toString() },
+                { value: 7,       label: "Years",       fmt: (n: number) => n.toString() },
+                { value: 57.9,    label: "R² × 100",   fmt: (n: number) => n.toFixed(1) + "%" },
+              ].map((s) => (
+                <div key={s.label} className="glass-card p-4 text-center" style={{ borderRadius: 12 }}>
+                  <div className="text-2xl font-black font-mono text-[#EDE9E3] mb-0.5">
+                    <AnimatedCounter value={s.value} format={s.fmt} />
+                  </div>
+                  <div className="text-[10px] font-semibold tracking-widest uppercase text-[#3A506B]">{s.label}</div>
+                </div>
               ))}
             </motion.div>
 
-            {/* Navigation */}
-            <motion.nav variants={fadeUp}>
-              <div className="glass-nav inline-flex gap-0.5 p-1 rounded-xl">
-                {tabs.map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTab(t.id)}
-                    className={`flex items-center gap-1.5 px-3 md:px-3.5 py-2 text-xs font-semibold rounded-lg transition-all duration-200 whitespace-nowrap ${
-                      tab === t.id ? "nav-active" : "text-gray-500 hover:text-gray-300"
-                    }`}
-                    style={{ fontFamily:"var(--font-outfit)" }}
-                  >
-                    {t.icon}
-                    <span className="hidden sm:inline">{t.label}</span>
+            <motion.div variants={itemV} className="flex flex-wrap gap-3">
+              <motion.button
+                onClick={() => scrollTo("overview")}
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97, y: 1 }}
+                className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm"
+                style={{
+                  background: "linear-gradient(135deg, #C8922A 0%, #E5AB3A 100%)",
+                  color: "#020B18", boxShadow: "0 8px 32px -8px rgba(200,146,42,0.45)",
+                }}
+              >
+                Explore the Data <ArrowRight size={15} />
+              </motion.button>
+              <motion.button
+                onClick={() => scrollTo("predict")}
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97, y: 1 }}
+                className="flex items-center gap-2 px-7 py-3.5 rounded-xl font-semibold text-sm text-[#EDE9E3]"
+                style={{ border: "1px solid rgba(200,146,42,0.25)", background: "rgba(200,146,42,0.07)" }}
+              >
+                <Brain size={15} style={{ color: "#C8922A" }} /> Predict Wait Time
+              </motion.button>
+            </motion.div>
+          </motion.div>
+
+          {/* Castle */}
+          <motion.div
+            style={{ y: castleY, opacity: heroOpacity }}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+            className="flex items-end justify-center"
+          >
+            <CastleSilhouette />
+          </motion.div>
+        </div>
+
+        {/* Scroll hint */}
+        <motion.div
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6, duration: 0.8 }}
+          className="flex flex-col items-center gap-2 mt-14 text-[#3A506B]"
+        >
+          <span className="text-[10px] tracking-widest uppercase font-medium">Scroll to explore</span>
+          <motion.div animate={{ y: [0, 6, 0] }} transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}>
+            <svg width="16" height="10" viewBox="0 0 16 10" fill="none">
+              <path d="M1 1l7 7 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
+// ================================================================
+// OVERVIEW SECTION
+// ================================================================
+
+function OverviewSection() {
+  const maxSeason = Math.max(...SEASONS.map((s) => s.avg))
+
+  return (
+    <section id="overview" className="relative py-28 px-6">
+      <div className="section-divider mb-28" />
+      <div className="max-w-7xl mx-auto">
+        <SectionHeader
+          label="By the Numbers"
+          title="7 Years. 1.75M Records."
+          subtitle="Every wait-time data point from 2015 through 2021, distilled into actionable patterns."
+        />
+
+        {/* Row 1: 2fr + 1fr stacked */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+          <TiltCard className="md:col-span-2 glass-card glass-card-hover p-8 relative overflow-hidden">
+            <div aria-hidden="true" className="absolute -right-8 -top-8 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+              style={{ background: "radial-gradient(circle, #C8922A, transparent)" }} />
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-4">Total Records Analyzed</div>
+            <div className="text-7xl md:text-8xl font-black font-mono text-[#EDE9E3] leading-none mb-3">
+              <AnimatedCounter value={1754414} format={(n) => n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n.toLocaleString()} />
+            </div>
+            <p className="text-[#7D93B2] text-sm max-w-[40ch]">
+              Collected across 4 parks, 8 attractions, spanning January 2015 – December 2021.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {Object.entries(PARK_META).map(([park, m]) => (
+                <span key={park} className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: m.bg, color: m.color, border: `1px solid ${m.border}` }}>
+                  {m.abbrev} · {park}
+                </span>
+              ))}
+            </div>
+          </TiltCard>
+
+          <div className="flex flex-col gap-5">
+            <TiltCard className="glass-card glass-card-hover p-6 flex-1">
+              <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#7D93B2] mb-2">Overall Avg Wait</div>
+              <div className="text-5xl font-black font-mono text-[#EDE9E3] leading-none">
+                <AnimatedCounter value={56.2} format={(n) => n.toFixed(1)} />
+              </div>
+              <div className="text-[#C8922A] font-medium mt-1">minutes</div>
+              <div className="flex items-center gap-1.5 text-xs text-[#5A9E6F] mt-3">
+                <TrendingDown size={13} /> Best on Wednesdays
+              </div>
+            </TiltCard>
+            <TiltCard className="glass-card glass-card-hover p-6 flex-1">
+              <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#7D93B2] mb-2">ML Model R²</div>
+              <div className="text-5xl font-black font-mono text-[#EDE9E3] leading-none">0.579</div>
+              <div className="text-[#C8922A] font-medium mt-1">MAE ± 15 min</div>
+              <div className="mt-3 h-1.5 rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
+                <motion.div initial={{ width: 0 }} whileInView={{ width: "57.9%" }} viewport={{ once: true }}
+                  transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+                  className="h-full rounded-full" style={{ background: "linear-gradient(90deg,#4A7FC1,#C8922A)" }} />
+              </div>
+            </TiltCard>
+          </div>
+        </div>
+
+        {/* Row 2: seasonal + holiday */}
+        <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-5">
+          <TiltCard className="glass-card p-8" intensity={3}>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-1">Seasonal Avg Wait</div>
+            <p className="text-[#3A506B] text-xs mb-8">Average across all 8 attractions by season</p>
+            <div className="flex items-end gap-4 h-36">
+              {SEASONS.map((s, i) => {
+                const h = (s.avg / maxSeason) * 100
+                return (
+                  <motion.div key={s.name} initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }} transition={{ delay: i * 0.08 }}
+                    className="flex-1 flex flex-col items-center gap-2">
+                    <span className="text-[11px] font-mono text-[#7D93B2]">{s.avg}</span>
+                    <div className="w-full relative rounded-t-sm overflow-hidden" style={{ height: `${h}%` }}>
+                      <motion.div initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
+                        transition={{ delay: i * 0.08 + 0.15, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute inset-0 rounded-t-sm"
+                        style={{
+                          originY: "bottom",
+                          background: s.best
+                            ? "linear-gradient(180deg,#5A9E6F,rgba(90,158,111,0.35))"
+                            : "linear-gradient(180deg,rgba(200,146,42,0.8),rgba(200,146,42,0.25))",
+                        }} />
+                    </div>
+                    <div className="text-center">
+                      <div className="text-xs font-medium text-[#EDE9E3]">{s.name}</div>
+                      <div className="text-[10px] text-[#3A506B]">{s.months}</div>
+                      {s.best && <div className="text-[9px] text-[#5A9E6F] font-bold tracking-widest uppercase mt-0.5">Best</div>}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </TiltCard>
+
+          <TiltCard className="glass-card p-8" intensity={3}>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-1">Holiday Impact</div>
+            <p className="text-[#3A506B] text-xs mb-6">Avg wait increase during peak periods</p>
+            <div className="space-y-4">
+              {HOLIDAYS.map((h, i) => (
+                <motion.div key={h.name} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }} transition={{ delay: i * 0.07 }}>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-xs text-[#EDE9E3] font-medium truncate pr-2">{h.name}</span>
+                    <span className="text-xs font-mono font-bold flex-shrink-0 text-[#C8922A]">+{h.impact}%</span>
+                  </div>
+                  <div className="h-1 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} whileInView={{ width: `${(h.impact / 43) * 100}%` }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.07 + 0.2, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                      className="h-full rounded-full bg-[#C8922A]" />
+                  </div>
+                  <div className="text-[10px] text-[#3A506B] mt-1">{h.period}</div>
+                </motion.div>
+              ))}
+            </div>
+          </TiltCard>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+// ================================================================
+// RIDES SECTION
+// ================================================================
+
+function RidesSection() {
+  const [filter, setFilter] = useState("All")
+  const parks   = ["All", ...Array.from(new Set(RIDES.map((r) => r.park)))]
+  const filtered = filter === "All" ? [...RIDES] : RIDES.filter((r) => r.park === filter)
+  const maxAvg   = Math.max(...RIDES.map((r) => r.avg))
+
+  return (
+    <section id="rides" className="relative py-28 px-6">
+      <div className="section-divider mb-28" />
+      <div className="max-w-7xl mx-auto">
+        <SectionHeader
+          label="Attraction Analysis"
+          title="Every Ride, Decoded."
+          subtitle="Average, median, and standard deviation for all 8 attractions — so you know exactly what to expect before you step in line."
+        />
+
+        {/* Park filter */}
+        <div className="flex flex-wrap gap-2 mb-10">
+          {parks.map((p) => {
+            const m = PARK_META[p]
+            const active = filter === p
+            return (
+              <motion.button key={p} onClick={() => setFilter(p)}
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                className="text-xs font-semibold px-4 py-2 rounded-lg transition-all duration-200"
+                style={{
+                  background: active ? (m?.bg ?? "rgba(200,146,42,0.14)") : "rgba(255,255,255,0.04)",
+                  color: active ? (m?.color ?? "#C8922A") : "#7D93B2",
+                  border: `1px solid ${active ? (m?.border ?? "rgba(200,146,42,0.35)") : "rgba(255,255,255,0.08)"}`,
+                }}>
+                {p === "All" ? "All Parks" : PARK_META[p]?.abbrev + " · " + p}
+              </motion.button>
+            )
+          })}
+        </div>
+
+        {/* Ride cards */}
+        <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((ride, i) => {
+              const m    = PARK_META[ride.park]
+              const barW = (ride.avg / maxAvg) * 100
+              return (
+                <motion.div key={ride.id} layout
+                  initial={{ opacity: 0, scale: 0.94 }} animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ delay: i * 0.05, type: "spring", stiffness: 120, damping: 20 }}>
+                  <TiltCard className="glass-card glass-card-hover p-6 h-full flex flex-col gap-4 relative" intensity={6}>
+                    {/* Park color top bar */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-[18px]" style={{ background: m?.color }} />
+                    <div className="mt-1">
+                      <ParkBadge park={ride.park} />
+                    </div>
+                    <h3 className="text-[#EDE9E3] font-bold text-base leading-tight">{ride.name}</h3>
+                    <div>
+                      <div className="flex justify-between text-[11px] mb-2">
+                        <span className="text-[#3A506B] font-medium">Avg wait</span>
+                        <span className="font-mono font-bold" style={{ color: m?.color }}>{ride.avg} min</span>
+                      </div>
+                      <div className="h-1.5 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
+                        <motion.div initial={{ width: 0 }} whileInView={{ width: `${barW}%` }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: i * 0.05 + 0.1 }}
+                          className="h-full rounded-full"
+                          style={{ background: `linear-gradient(90deg,${m?.color}88,${m?.color})` }} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center mt-auto">
+                      {[
+                        { val: ride.avg.toString(),    label: "Avg"    },
+                        { val: ride.median.toString(), label: "Median" },
+                        { val: `±${ride.std}`,         label: "Std Dev"},
+                      ].map((s) => (
+                        <div key={s.label}>
+                          <div className="text-lg font-black font-mono" style={{ color: m?.color }}>{s.val}</div>
+                          <div className="text-[9px] font-semibold tracking-widest uppercase text-[#3A506B]">{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </TiltCard>
+                </motion.div>
+              )
+            })}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Feature importance */}
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }} transition={{ duration: 0.55 }}
+          className="mt-8 glass-card p-8">
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-8 items-center">
+            <div>
+              <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-2">ML Feature Importance</div>
+              <p className="text-[#7D93B2] text-sm max-w-[26ch]">Which inputs drive the Random Forest predictions most.</p>
+            </div>
+            <div className="space-y-3">
+              {FEATURE_IMPORTANCE.map((f, i) => (
+                <div key={f.feature} className="flex items-center gap-3">
+                  <span className="text-xs text-[#7D93B2] w-28 flex-shrink-0 text-right">{f.feature}</span>
+                  <div className="flex-1 h-1.5 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} whileInView={{ width: `${f.pct}%` }}
+                      viewport={{ once: true }}
+                      transition={{ delay: i * 0.08 + 0.2, duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+                      className="h-full rounded-full"
+                      style={{ background: i === 0 ? "linear-gradient(90deg,#4A7FC1,#C8922A)" : "rgba(200,146,42,0.5)" }} />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-[#EDE9E3] w-12 flex-shrink-0">{f.pct}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
+// ================================================================
+// PREDICT SECTION
+// ================================================================
+
+function PredictSection() {
+  const [form, setForm] = useState<{ ride: string; month: number; day: number; holiday: boolean }>(
+    { ride: RIDES[2].name, month: 6, day: 5, holiday: false },
+  )
+  const [result, setResult] = useState<ReturnType<typeof predictWait> | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [ran, setRan] = useState(false)
+
+  const handlePredict = useCallback(async () => {
+    setLoading(true); setResult(null)
+    await new Promise((r) => setTimeout(r, 680))
+    setResult(predictWait(form.ride, form.month, form.day, form.holiday))
+    setLoading(false); setRan(true)
+  }, [form])
+
+  const category = result ? getWaitCategory(result.prediction) : null
+
+  return (
+    <section id="predict" className="relative py-28 px-6">
+      <div className="section-divider mb-28" />
+      <div className="max-w-7xl mx-auto">
+        <SectionHeader
+          label="Machine Learning Model"
+          title="Predict Your Wait."
+          subtitle="Random Forest model trained on 1.75M records. Select an attraction, day, and travel month for an instant prediction."
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Form */}
+          <TiltCard className="glass-card p-8 space-y-5" intensity={3}>
+            <div>
+              <label className="block text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-2">Attraction</label>
+              <select className="themed-select" value={form.ride}
+                onChange={(e) => setForm((f) => ({ ...f, ride: e.target.value }))}>
+                {RIDES.map((r) => (
+                  <option key={r.id} value={r.name}>{r.name} ({PARK_META[r.park]?.abbrev})</option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-2">Month</label>
+                <select className="themed-select" value={form.month}
+                  onChange={(e) => setForm((f) => ({ ...f, month: +e.target.value }))}>
+                  {MONTHS.map((m, i) => <option key={m} value={i}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-2">Day</label>
+                <select className="themed-select" value={form.day}
+                  onChange={(e) => setForm((f) => ({ ...f, day: +e.target.value }))}>
+                  {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].map((d, i) => (
+                    <option key={d} value={i}>{d}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-3">Holiday Period</label>
+              <div className="flex gap-3">
+                {[{ val: false, label: "Not a Holiday" }, { val: true, label: "Holiday Period" }].map((opt) => (
+                  <button key={String(opt.val)} onClick={() => setForm((f) => ({ ...f, holiday: opt.val }))}
+                    className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+                    style={{
+                      background: form.holiday === opt.val ? (opt.val ? "rgba(200,80,42,0.14)" : "rgba(200,146,42,0.11)") : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${form.holiday === opt.val ? (opt.val ? "rgba(200,80,42,0.4)" : "rgba(200,146,42,0.35)") : "rgba(255,255,255,0.08)"}`,
+                      color: form.holiday === opt.val ? (opt.val ? "#C8602A" : "#C8922A") : "#7D93B2",
+                    }}>
+                    {opt.label}
                   </button>
                 ))}
               </div>
-            </motion.nav>
+            </div>
+            <motion.button onClick={handlePredict}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97, y: 1 }}
+              disabled={loading}
+              className="w-full py-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2"
+              style={{
+                background: loading ? "rgba(200,146,42,0.18)" : "linear-gradient(135deg,#C8922A 0%,#E5AB3A 100%)",
+                color: loading ? "#C8922A" : "#020B18",
+                boxShadow: loading ? "none" : "0 8px 32px -8px rgba(200,146,42,0.4)",
+                transition: "all 0.3s",
+              }}>
+              {loading ? (
+                <>
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 0.8, ease: "linear" }}
+                    className="w-4 h-4 rounded-full border-2 border-[#C8922A] border-t-transparent" />
+                  Calculating…
+                </>
+              ) : (
+                <><Brain size={15} />{ran ? "Recalculate" : "Calculate Wait Time"}</>
+              )}
+            </motion.button>
+          </TiltCard>
 
-          </motion.div>
-        </motion.div>
-      </header>
-
-      {/* ══════════════════════════════════════════
-          CONTENT
-      ══════════════════════════════════════════ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-7 relative" style={{ zIndex: 2 }}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity:0, y:12 }}
-            animate={{ opacity:1, y:0 }}
-            exit={{ opacity:0, y:-10 }}
-            transition={{ duration:0.28, ease:[0.16,1,0.3,1] as const }}
-          >
-
-            {/* ── OVERVIEW ── */}
-            {tab === "overview" && (
-              <motion.div variants={stagger} initial="hidden" animate="show">
-
-                {/* Stat cards */}
-                <motion.div variants={stagger} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                  {[
-                    { l:"Total records",   counter:1754414, display:"1.75M+", s:"wait time observations", c:"#7B8CDE" },
-                    { l:"Date range",      counter:null,    display:"7 Years", s:"Jan 2015 – Dec 2021",    c:"#C17BDB" },
-                    { l:"Christmas peak",  counter:null,    display:"+43%",    s:"vs regular periods",     c:"#D45A43" },
-                    { l:"Best day to go",  counter:null,    display:"Wed",     s:"56 min avg wait",        c:"#6BBF7A" },
-                  ].map((s, i) => (
-                    <TiltCard
-                      key={i}
-                      className="stat-card rounded-xl p-4"
-                      style={{ borderLeftColor: s.c }}
-                    >
-                      <div className="text-xs text-gray-500 mb-1.5 font-medium">{s.l}</div>
-                      <div
-                        className="text-2xl font-black tabular-nums"
-                        style={{ color:s.c, fontFamily:"var(--font-outfit)", textShadow:`0 0 22px ${s.c}40` }}
-                      >
-                        {s.counter ? <AnimatedCounter to={s.counter} /> : s.display}
-                      </div>
-                      <div className="text-xs mt-1" style={{ color:"rgba(255,255,255,0.22)" }}>{s.s}</div>
-                    </TiltCard>
-                  ))}
-                </motion.div>
-
-                {/* Tip banner */}
-                <motion.div
-                  variants={cardVar}
-                  className="flex items-center gap-3.5 p-4 rounded-xl mb-5"
-                  style={{ background:"rgba(107,191,122,0.05)", border:"1px solid rgba(107,191,122,0.13)" }}
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background:"rgba(107,191,122,0.12)" }}>
-                    <Sparkles size={16} className="text-green-400" />
+          {/* Result */}
+          <div className="glass-card p-8 flex flex-col justify-center min-h-[380px]">
+            <AnimatePresence mode="wait">
+              {!result && !loading && (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center text-center h-full gap-4">
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+                    style={{ background: "rgba(200,146,42,0.08)", border: "1px solid rgba(200,146,42,0.15)" }}>
+                    <Brain size={28} style={{ color: "#C8922A", opacity: 0.55 }} />
                   </div>
-                  <p className="text-xs text-gray-400">
-                    <span className="text-green-400 font-semibold">Quick tip: </span>
-                    Visit on a Wednesday in the fall for the shortest waits — averaging just 51 minutes across all rides.
+                  <p className="text-[#3A506B] text-sm max-w-[24ch]">
+                    Configure your trip details and hit Calculate to get a prediction.
                   </p>
                 </motion.div>
-
-                {/* Charts grid */}
-                <motion.div variants={stagger} className="grid md:grid-cols-2 gap-4">
-                  <TiltCard className="glass-card rounded-2xl p-5">
-                    <SectionHeader icon={<TrendingUp size={13} />} title="Holiday impact on wait times" />
-                    <div className="space-y-3.5">
-                      {HOLIDAYS.map((h, i) => (
-                        <div key={i}>
-                          <div className="flex justify-between text-xs mb-1.5">
-                            <span className="text-gray-500">{h.period}</span>
-                            <span className="font-semibold tabular-nums" style={{ color:"rgba(255,255,255,0.7)" }}>
-                              {h.avg} min
-                              {h.pct > 0 && <span className="ml-1" style={{ color:"#D45A43" }}>+{h.pct}%</span>}
-                            </span>
-                          </div>
-                          <AnimatedBar
-                            value={h.avg} max={85}
-                            color={h.period==="Regular" ? "#6BBF7A" : h.pct>30 ? "#D45A43" : "#D4A843"}
-                            delay={i*80}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </TiltCard>
-
-                  <TiltCard className="glass-card rounded-2xl p-5">
-                    <SectionHeader icon={<Calendar size={13} />} title="Average wait by season" />
-                    <div className="flex items-end gap-4 h-44 mt-6 px-2">
-                      {SEASONS.map((s, i) => {
-                        const h = (s.avg / 75) * 100;
-                        return (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-2">
-                            <span className="text-sm font-bold text-white tabular-nums">{s.avg}</span>
-                            <div
-                              className="w-full rounded-lg relative overflow-hidden"
-                              style={{
-                                height: `${mounted ? h : 0}%`,
-                                background: "linear-gradient(to top, #C89924, #F0B429, #FFE070)",
-                                transition: "height 1s cubic-bezier(0.16,1,0.3,1)",
-                                transitionDelay: `${i*130}ms`,
-                                boxShadow: mounted ? "0 0 18px rgba(240,180,41,0.32)" : "none",
-                                minHeight: 0,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  position:"absolute", inset:0,
-                                  background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)",
-                                  backgroundSize:"200% 100%",
-                                  animation: mounted ? "shimmer 3s ease infinite" : "none",
-                                  animationDelay: `${i*0.4}s`,
-                                }}
-                              />
-                            </div>
-                            <div className="text-xs text-gray-500">{s.season}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="text-xs text-gray-600 text-center mt-4">Average minutes across all rides</div>
-                  </TiltCard>
+              )}
+              {loading && (
+                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="flex flex-col items-center justify-center gap-5 h-full">
+                  <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.2, ease: "linear" }}
+                    className="w-12 h-12 rounded-full border-2 border-[rgba(200,146,42,0.2)] border-t-[#C8922A]" />
+                  <p className="text-[#3A506B] text-sm">Running Random Forest model…</p>
+                  <div className="w-48 h-1 rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
+                    <motion.div initial={{ x: "-100%" }} animate={{ x: "100%" }}
+                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                      className="h-full w-1/2 rounded-full bg-gradient-to-r from-transparent via-[#C8922A] to-transparent" />
+                  </div>
                 </motion.div>
-              </motion.div>
-            )}
-
-            {/* ── BY RIDE ── */}
-            {tab === "rides" && (
-              <motion.div variants={stagger} initial="hidden" animate="show">
-                <TiltCard className="glass-card rounded-2xl p-6">
-                  <SectionHeader
-                    icon={<BarChart3 size={13} />}
-                    title="Average wait by attraction"
-                    subtitle="Sorted by average across all recorded periods"
-                  />
-                  <div className="space-y-4">
-                    {SORTED_RIDES.map((r, i) => (
-                      <motion.div
-                        key={r.id}
-                        initial={{ opacity:0, x:-14 }}
-                        animate={{ opacity:1, x:0 }}
-                        transition={{ delay:i*0.06, type:"spring", stiffness:120, damping:20 }}
-                      >
-                        <div className="flex justify-between text-xs mb-1.5 items-center gap-2">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-gray-200 font-medium truncate">{r.name}</span>
-                            <span
-                              className="px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap hidden sm:inline-block"
-                              style={{
-                                background:`${PARK_COLORS[r.park]}14`,
-                                color:PARK_COLORS[r.park],
-                                border:`1px solid ${PARK_COLORS[r.park]}28`,
-                              }}
-                            >
-                              {r.park}
-                            </span>
-                          </div>
-                          <span className="font-bold text-white tabular-nums shrink-0">{r.avg} min</span>
-                        </div>
-                        <AnimatedBar value={r.avg} max={120} color={PARK_COLORS[r.park]} delay={i*70} />
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Legend */}
-                  <div className="flex gap-5 mt-5 pt-4 flex-wrap" style={{ borderTop:"1px solid rgba(255,255,255,0.05)" }}>
-                    {Object.entries(PARK_COLORS).map(([p, c]) => (
-                      <div key={p} className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor:c, boxShadow:`0 0 6px ${c}55` }} />
-                        <span className="text-xs text-gray-500">{p}</span>
-                      </div>
-                    ))}
-                  </div>
-                </TiltCard>
-              </motion.div>
-            )}
-
-            {/* ── PREDICT ── */}
-            {tab === "predict" && <PredictionTab />}
-
-            {/* ── WHEN TO GO ── */}
-            {tab === "timing" && (
-              <motion.div variants={stagger} initial="hidden" animate="show">
-
-                {/* Best time banner */}
-                <TiltCard className="glass-card rounded-2xl p-5 mb-4 flex items-center gap-4">
-                  <div
-                    className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background:"linear-gradient(135deg, rgba(107,191,122,0.18), rgba(107,191,122,0.06))", border:"1px solid rgba(107,191,122,0.22)" }}
-                  >
-                    <Sparkles size={20} className="text-green-400" />
+              )}
+              {result && !loading && (
+                <motion.div key="result" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }} transition={{ type: "spring", stiffness: 120, damping: 20 }}
+                  className="space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#7D93B2] mb-1">Predicted Wait</div>
+                      <div className="text-8xl font-black font-mono text-[#EDE9E3] leading-none">{result.prediction}</div>
+                      <div className="text-xl font-medium text-[#C8922A] mt-1">minutes</div>
+                    </div>
+                    {category && (
+                      <span className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg mt-2"
+                        style={{ background: `${category.color}18`, color: category.color, border: `1px solid ${category.color}44` }}>
+                        {category.icon} {category.label}
+                      </span>
+                    )}
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-white mb-1" style={{ fontFamily:"var(--font-outfit)" }}>
-                      Best time to visit
+                    <div className="flex justify-between text-xs text-[#3A506B] mb-2">
+                      <span>Range: {result.range[0]}–{result.range[1]} min</span>
+                      <span className="font-mono">{result.confidence}% confidence</span>
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Wednesday in fall · Arrive at 8 AM or after 7 PM for the shortest waits
+                    <div className="h-2 rounded-full bg-[rgba(255,255,255,0.05)] overflow-hidden">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${result.confidence}%` }}
+                        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                        className="h-full rounded-full" style={{ background: "linear-gradient(90deg,#4A7FC1,#C8922A)" }} />
                     </div>
                   </div>
-                </TiltCard>
-
-                <motion.div variants={stagger} className="grid md:grid-cols-2 gap-4">
-                  <TiltCard className="glass-card rounded-2xl p-5">
-                    <SectionHeader icon={<Calendar size={13} />} title="Wait times by day of week" />
-                    <div className="flex items-end gap-2 h-36">
-                      {DAY_DATA.map((d, i) => {
-                        const h   = ((d.avg - 50) / 15) * 100;
-                        const isMin = d.avg <= 56.5;
-                        const isMax = d.avg >= 62;
-                        const col   = isMin ? "#6BBF7A" : isMax ? "#D45A43" : "#7B8CDE";
-                        return (
-                          <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                            <span className="text-xs font-bold text-white tabular-nums">{Math.round(d.avg)}</span>
-                            <div
-                              className="w-full rounded-md"
-                              style={{
-                                height: `${mounted ? h : 0}%`,
-                                background: `linear-gradient(to top, ${col}80, ${col})`,
-                                transition: "height 0.8s cubic-bezier(0.16,1,0.3,1)",
-                                transitionDelay: `${i*60}ms`,
-                                minHeight: 20,
-                                boxShadow: mounted ? `0 0 10px ${col}30` : "none",
-                              }}
-                            />
-                            <span className="text-xs text-gray-500">{d.day}</span>
-                          </div>
-                        );
-                      })}
+                  <div className="rounded-xl p-4 text-sm text-[#7D93B2]"
+                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex gap-2">
+                      <Info size={14} className="flex-shrink-0 mt-0.5" style={{ color: "#C8922A" }} />
+                      <p>
+                        On a <span className="text-[#EDE9E3]">
+                          {["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][form.day]}
+                        </span> in <span className="text-[#EDE9E3]">{MONTHS[form.month]}</span>
+                        {form.holiday ? <span className="text-[#C8602A]"> (holiday period)</span> : ""}, the model
+                        estimates <span className="text-[#C8922A] font-semibold">{result.prediction} minutes</span> for {form.ride}.
+                      </p>
                     </div>
-                    <div className="flex gap-4 mt-4 pt-3 text-xs" style={{ borderTop:"1px solid rgba(255,255,255,0.05)" }}>
-                      {[{ c:"#6BBF7A",l:"Best" },{ c:"#7B8CDE",l:"Average" },{ c:"#D45A43",l:"Busiest" }].map(({ c, l }) => (
-                        <div key={l} className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full" style={{ background:c, boxShadow:`0 0 6px ${c}60` }} />
-                          <span className="text-gray-500">{l}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </TiltCard>
-
-                  <TiltCard className="glass-card rounded-2xl p-5">
-                    <SectionHeader icon={<Clock size={13} />} title="Peak hours at the parks" />
-                    <div className="space-y-3">
-                      {[
-                        { time:"11 AM",      label:"Peak — busiest hour",          avg:"70 min avg", type:"bad"  as const },
-                        { time:"8 AM",       label:"Rope drop — arrive early",     avg:"43 min avg", type:"good" as const },
-                        { time:"After 7 PM", label:"Evening — crowds thin out",    avg:"44 min avg", type:"good" as const },
-                      ].map((item, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-3 rounded-xl p-3.5"
-                          style={{
-                            background: item.type==="bad" ? "rgba(212,90,67,0.07)" : "rgba(107,191,122,0.07)",
-                            border:`1px solid ${item.type==="bad" ? "rgba(212,90,67,0.14)" : "rgba(107,191,122,0.14)"}`,
-                          }}
-                        >
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ background: item.type==="bad" ? "rgba(212,90,67,0.12)" : "rgba(107,191,122,0.12)" }}
-                          >
-                            <Clock size={14} style={{ color: item.type==="bad" ? "#D45A43" : "#6BBF7A" }} />
-                          </div>
-                          <div className="flex-1">
-                            <div className="text-sm font-bold" style={{ color: item.type==="bad" ? "#D45A43" : "#6BBF7A", fontFamily:"var(--font-outfit)" }}>
-                              {item.time}
-                            </div>
-                            <div className="text-xs text-gray-600 mt-0.5">{item.label}</div>
-                          </div>
-                          <span className="text-xs text-gray-500 tabular-nums font-medium">{item.avg}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </TiltCard>
+                  </div>
+                  {result.prediction > 60 && (
+                    <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                      className="flex items-start gap-2 text-xs text-[#5A9E6F]">
+                      <Zap size={13} className="flex-shrink-0 mt-0.5" />
+                      <span>Arrive at rope drop — waits are typically 40–60% lower in the first 90 minutes of operation.</span>
+                    </motion.div>
+                  )}
                 </motion.div>
-              </motion.div>
-            )}
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
 
-            {/* ── HOLLYWOOD STUDIOS ── */}
-            {tab === "hollywood" && (
-              <motion.div variants={stagger} initial="hidden" animate="show">
+// ================================================================
+// TIMING SECTION
+// ================================================================
 
-                {/* Heatmap */}
-                <TiltCard className="glass-card rounded-2xl p-6 mb-4 relative overflow-hidden">
-                  {/* Cinematic backdrop */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={PARK_PHOTOS["Hollywood Studios"]}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
-                    style={{ opacity: 0.07, filter: "blur(2px) saturate(1.4)" }}
-                  />
-                  <div className="relative z-10">
-                  <SectionHeader
-                    icon={<Clapperboard size={13} />}
-                    title="Hollywood Studios hourly heatmap"
-                    subtitle="Typical wait times by hour — hover cells for details"
-                  />
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[600px]">
-                      <div className="flex items-center mb-2">
-                        <div className="w-44" />
-                        <div className="flex-1 flex gap-0.5">
-                          {HOURS_LIST.map(h => (
-                            <div key={h} className="flex-1 text-center text-xs text-gray-600">
-                              {h>12 ? h-12 : h}{h>=12?"p":"a"}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      {Object.entries(HS_HOURLY).map(([ride, data]) => (
-                        <div key={ride} className="flex items-center mb-1">
-                          <div className="w-44 text-xs text-gray-300 text-right pr-4 truncate font-medium">{ride}</div>
-                          <div className="flex-1 flex gap-0.5">
-                            {data.map((val, i) => {
-                              const intensity = Math.min(val / 85, 1);
-                              return (
-                                <div
-                                  key={i}
-                                  className="flex-1 h-8 rounded flex items-center justify-center text-xs font-semibold tabular-nums cursor-default transition-all duration-150 hover:scale-110 hover:z-10"
-                                  title={`${ride}: ${val} min at ${HOURS_LIST[i]>12 ? HOURS_LIST[i]-12 : HOURS_LIST[i]}${HOURS_LIST[i]>=12?"PM":"AM"}`}
-                                  style={{
-                                    background:`rgba(240,${Math.round(180-intensity*138)},${Math.round(41-intensity*22)},${0.1+intensity*0.58})`,
-                                    color: intensity>0.42 ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.32)",
-                                    boxShadow: intensity>0.6 ? `0 0 8px rgba(240,${Math.round(60+(1-intensity)*100)},41,0.25)` : "none",
-                                  }}
-                                >
-                                  {val}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                      {/* Legend */}
-                      <div className="flex items-center gap-2 mt-4 ml-44 text-xs text-gray-600">
-                        <span>Short</span>
-                        <div className="flex h-2.5 rounded overflow-hidden flex-1 max-w-[180px]">
-                          {[0.1,0.18,0.28,0.38,0.48,0.56,0.65].map((o,i) => (
-                            <div key={i} className="flex-1" style={{ background:`rgba(240,${Math.round(180-i*20)},41,${o})` }} />
-                          ))}
-                        </div>
-                        <span>Long</span>
-                      </div>
-                    </div>
-                  </div>
-                  </div>{/* end z-10 wrapper */}
-                </TiltCard>
+function TimingSection() {
+  const maxDay = Math.max(...DAYS.map((d) => d.avg))
+  const minDay = Math.min(...DAYS.map((d) => d.avg))
 
-                {/* Suggested order */}
-                <TiltCard className="glass-card rounded-2xl p-6 mb-4">
-                  <SectionHeader
-                    icon={<MapPin size={13} />}
-                    title="Suggested ride order"
-                    subtitle="Minimize total wait time with this sequence"
-                  />
-                  <div className="space-y-2.5">
-                    {[
-                      { time:"8:00 AM",  ride:"Slinky Dog Dash",        wait:"59 min", note:"Rope drop — lines explode after 10 AM", hot:true  },
-                      { time:"9:15 AM",  ride:"Rock 'n' Roller Coaster",wait:"42 min", note:"Ramps up fast — go early",             hot:false },
-                      { time:"10:30 AM", ride:"Toy Story Mania",        wait:"61 min", note:"Steady mid-morning",                   hot:false },
-                      { time:"Afternoon",ride:"Alien Swirling Saucers", wait:"36 min", note:"Never exceeds 41 min — save for last", hot:false },
-                    ].map((step, i) => (
-                      <motion.div
-                        key={i}
-                        initial={{ opacity:0, x:-14 }}
-                        animate={{ opacity:1, x:0 }}
-                        transition={{ delay:i*0.07, type:"spring", stiffness:120, damping:20 }}
-                        className="flex items-center gap-3.5 p-3.5 rounded-xl"
+  return (
+    <section id="timing" className="relative py-28 px-6">
+      <div className="section-divider mb-28" />
+      <div className="max-w-7xl mx-auto">
+        <SectionHeader
+          label="Visit Planning"
+          title="Timing is Everything."
+          subtitle="Day-of-week patterns reveal a clear midweek advantage — up to 22% shorter waits than weekend peaks."
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 mb-6">
+          {/* Day chart */}
+          <TiltCard className="glass-card p-8" intensity={3}>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-1">Avg Wait by Day</div>
+            <p className="text-[#3A506B] text-xs mb-8">Across all 8 attractions · minutes</p>
+            <div className="flex items-end gap-3 h-44">
+              {DAYS.map((d, i) => {
+                const h    = (d.avg / maxDay) * 100
+                const best = d.avg === minDay
+                const worst= d.avg === maxDay
+                return (
+                  <motion.div key={d.day} initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }} transition={{ delay: i * 0.07 }}
+                    className="flex-1 flex flex-col items-center gap-2">
+                    <span className="text-[10px] font-mono text-[#7D93B2]">{d.avg}</span>
+                    <div className="w-full relative" style={{ height: `${h}%` }}>
+                      <motion.div initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
+                        transition={{ delay: i * 0.07 + 0.15, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute inset-0 rounded-t-md"
                         style={{
-                          background: step.hot ? "rgba(240,180,41,0.06)" : "rgba(255,255,255,0.025)",
-                          border:`1px solid ${step.hot ? "rgba(240,180,41,0.16)" : "rgba(255,255,255,0.06)"}`,
-                        }}
-                      >
-                        <div
-                          className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 tabular-nums"
-                          style={{ background:"rgba(240,180,41,0.12)", color:"#F0B429" }}
-                        >
-                          {i+1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-200">{step.ride}</span>
-                            <ChevronRight size={10} className="text-gray-600 shrink-0" />
-                            <span className="text-xs text-gray-500 truncate">{step.time}</span>
-                          </div>
-                          <div className="text-xs text-gray-600 mt-0.5">{step.note}</div>
-                        </div>
-                        <span
-                          className="text-xs font-semibold tabular-nums shrink-0 px-2.5 py-1 rounded-lg"
-                          style={{ background:"rgba(255,255,255,0.06)", color:"rgba(255,255,255,0.55)" }}
-                        >
-                          {step.wait}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                </TiltCard>
+                          originY: "bottom",
+                          background: best ? "linear-gradient(180deg,#5A9E6F,rgba(90,158,111,0.35))"
+                            : worst ? "linear-gradient(180deg,#C84A2A,rgba(200,74,42,0.35))"
+                            : "linear-gradient(180deg,rgba(200,146,42,0.75),rgba(200,146,42,0.2))",
+                        }} />
+                    </div>
+                    <span className="text-xs font-medium"
+                      style={{ color: best ? "#5A9E6F" : worst ? "#C84A2A" : "#7D93B2" }}>{d.day}</span>
+                    {best  && <span className="text-[9px] text-[#5A9E6F] font-bold tracking-widest uppercase">Best</span>}
+                    {worst && <span className="text-[9px] text-[#C84A2A] font-bold tracking-widest uppercase">Peak</span>}
+                  </motion.div>
+                )
+              })}
+            </div>
+          </TiltCard>
 
-                {/* Insider tips */}
-                <TiltCard className="glass-card rounded-2xl p-6">
-                  <SectionHeader
-                    icon={<Info size={13} />}
-                    title="Insider strategy"
-                    subtitle="From crowd pattern analysis across 1.75M+ records"
-                  />
-                  <div className="space-y-2">
-                    {[
-                      "Hit Slinky Dog Dash at rope drop — 59 min vs 84 min at 11 AM",
-                      "Rock 'n' Roller Coaster: before 9 AM or after 7 PM saves 30+ min",
-                      "Alien Swirling Saucers never exceeds 41 min — save for the afternoon",
-                      "Toy Story Mania waits drop nearly 50% after 7 PM",
-                    ].map((tip, i) => (
-                      <div key={i} className="flex gap-3 items-start p-2.5 rounded-lg hover:bg-white/[0.025] transition-colors">
-                        <div
-                          className="w-5 h-5 rounded flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
-                          style={{ background:"rgba(240,180,41,0.1)", color:"#F0B429" }}
-                        >
-                          {i+1}
-                        </div>
-                        <span className="text-sm text-gray-400">{tip}</span>
-                      </div>
-                    ))}
-                  </div>
-                </TiltCard>
+          {/* Recommendations */}
+          <div className="flex flex-col gap-4">
+            {[
+              { icon: <CheckCircle2 size={15} />, color: "#5A9E6F", title: "Best Days to Go",
+                body: "Tue & Wed consistently lowest — 56–59 min average vs 72 min Saturday peak." },
+              { icon: <Clock size={15} />,        color: "#C8922A", title: "Rope Drop Strategy",
+                body: "First 90 minutes after open: 40–60% shorter waits. Hit the top rides immediately." },
+              { icon: <Calendar size={15} />,     color: "#4A7FC1", title: "Fall Is Your Friend",
+                body: "Sep–Nov averages 58.9 min — lowest of all seasons with no major holidays until Thanksgiving." },
+              { icon: <AlertTriangle size={15} />,color: "#C84A2A", title: "Avoid Holiday Weeks",
+                body: "Christmas (+43%) and Thanksgiving (+25%) are the biggest crowd spikes in the dataset." },
+            ].map((card, i) => (
+              <motion.div key={card.title} initial={{ opacity: 0, x: 16 }} whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }} transition={{ delay: i * 0.09 }}
+                className="glass-card p-5 flex gap-4">
+                <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5"
+                  style={{ background: `${card.color}18`, border: `1px solid ${card.color}44`, color: card.color }}>
+                  {card.icon}
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-[#EDE9E3] mb-1">{card.title}</div>
+                  <p className="text-xs text-[#7D93B2] leading-relaxed">{card.body}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
 
+        {/* Month crowd heatmap */}
+        <TiltCard className="glass-card p-8" intensity={2}>
+          <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-1">Month-by-Month Crowd Level</div>
+          <p className="text-[#3A506B] text-xs mb-6">Relative wait-time multiplier — green = low crowds, red = high</p>
+          <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+            {MONTH_FACTORS.map((factor, i) => {
+              const intensity = Math.max(0, Math.min(1, (factor - 0.78) / 0.57))
+              return (
+                <motion.div key={i} initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }} transition={{ delay: i * 0.04 }}
+                  className="heat-cell aspect-square flex flex-col items-center justify-center gap-0.5"
+                  style={{ background: getHeatColor(10 + intensity * 82) }}
+                  title={`${MONTHS[i]}: ${factor}× multiplier`}>
+                  <span className="text-[9px] font-bold text-white/90">{MONTHS[i].slice(0,3)}</span>
+                  <span className="text-[8px] font-mono text-white/70">{factor}×</span>
+                </motion.div>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-4 mt-5 text-[10px] text-[#3A506B]">
+            {[["rgba(42,150,68,0.88)","Low crowds"],["rgba(200,146,42,0.88)","Moderate"],["rgba(180,50,28,0.88)","High crowds"]].map(([bg,label]) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-sm" style={{ background: bg }} />
+                {label}
+              </div>
+            ))}
+          </div>
+        </TiltCard>
+      </div>
+    </section>
+  )
+}
+
+// ================================================================
+// STUDIOS SECTION
+// ================================================================
+
+function StudiosSection() {
+  const [hovered, setHovered] = useState<{ ride: string; hour: string; val: number } | null>(null)
+  const rides = Object.keys(HS_HOURLY)
+
+  return (
+    <section id="studios" className="relative py-28 px-6">
+      <div className="section-divider mb-28" />
+      <div className="max-w-7xl mx-auto">
+        <SectionHeader
+          label="Hollywood Studios Deep Dive"
+          title="Hour by Hour."
+          subtitle="Hourly wait-time heatmap for all 4 DHS attractions — 8 AM through 9 PM. Plan your visit down to the minute."
+        />
+
+        <TiltCard className="glass-card p-8 mb-6 overflow-x-auto" intensity={2}>
+          <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-6">
+            Avg Wait (min) · Hollywood Studios · Hourly
+          </div>
+          {/* Hour header */}
+          <div className="grid gap-1 mb-1" style={{ gridTemplateColumns: `150px repeat(${HOURS_LABELS.length}, 1fr)` }}>
+            <div />
+            {HOURS_LABELS.map((h) => (
+              <div key={h} className="text-[9px] font-mono text-[#3A506B] text-center">{h}</div>
+            ))}
+          </div>
+          {/* Data rows */}
+          {rides.map((ride, ri) => (
+            <motion.div key={ride} initial={{ opacity: 0, x: -12 }} whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }} transition={{ delay: ri * 0.08 }}
+              className="grid gap-1 mb-1 items-center"
+              style={{ gridTemplateColumns: `150px repeat(${HOURS_LABELS.length}, 1fr)` }}>
+              <div className="text-[11px] text-[#7D93B2] font-medium pr-3 truncate text-right">{ride}</div>
+              {HS_HOURLY[ride].map((val, hi) => (
+                <motion.div key={hi} initial={{ opacity: 0, scale: 0.6 }} whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }} transition={{ delay: ri * 0.05 + hi * 0.02 }}
+                  className="heat-cell aspect-square flex items-center justify-center"
+                  style={{ background: getHeatColor(val) }}
+                  onMouseEnter={() => setHovered({ ride, hour: HOURS_LABELS[hi], val })}
+                  onMouseLeave={() => setHovered(null)}>
+                  <span className="text-[9px] font-mono font-bold text-white/85">{val}</span>
+                </motion.div>
+              ))}
+            </motion.div>
+          ))}
+          {/* Legend */}
+          <div className="flex items-center gap-3 mt-5 text-[10px] text-[#3A506B]">
+            <span>Wait:</span>
+            <div className="flex-1 max-w-[180px] h-2 rounded-full"
+              style={{ background: "linear-gradient(90deg,rgba(42,150,68,0.88),rgba(200,146,42,0.88),rgba(180,50,28,0.88))" }} />
+            <span>10 min → 92 min</span>
+          </div>
+          <AnimatePresence>
+            {hovered && (
+              <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mt-3 text-sm text-[#EDE9E3]">
+                <span className="text-[#C8922A] font-bold">{hovered.ride}</span>
+                {" · "}{hovered.hour}{" → "}
+                <span className="font-mono font-bold">{hovered.val} min</span>
               </motion.div>
             )}
+          </AnimatePresence>
+        </TiltCard>
 
-          </motion.div>
-        </AnimatePresence>
+        {/* Strategy cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { ride: "Slinky Dog Dash",         color: "#C8922A", best: "8–9 AM",  tip: "Rope drop essential. Waits exceed 88 min by noon. Hit this first or use Lightning Lane." },
+            { ride: "Rock 'n' Roller Coaster", color: "#4A7FC1", best: "7–9 PM",  tip: "Peaks midday around 78 min. Evening 7–9 PM drops to ~30 min — the sweet spot." },
+            { ride: "Toy Story Mania",          color: "#5A9E6F", best: "8–9 PM",  tip: "Busy but manageable through the day. Late evening window is best at ~29 min." },
+            { ride: "Alien Swirling Saucers",   color: "#8B6BB5", best: "Anytime", tip: "Lowest waits in DHS. Never exceeds 38 min — flexible any time, best after 6 PM." },
+          ].map((s, i) => (
+            <motion.div key={s.ride} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }} transition={{ delay: i * 0.09 }}
+              className="glass-card glass-card-hover p-6">
+              <div className="text-[10px] font-bold tracking-widest uppercase mb-3 px-2 py-1 rounded-sm inline-block"
+                style={{ background: `${s.color}14`, color: s.color, border: `1px solid ${s.color}30` }}>
+                {s.ride}
+              </div>
+              <p className="text-xs text-[#7D93B2] leading-relaxed mb-4">{s.tip}</p>
+              <div className="flex items-center gap-2">
+                <Clock size={12} style={{ color: "#5A9E6F" }} />
+                <span className="text-[11px] font-bold text-[#5A9E6F]">Best: {s.best}</span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
 
-        {/* Footer */}
-        <footer
-          className="text-center text-xs mt-12 pb-6 pt-6"
-          style={{ borderTop:"1px solid rgba(255,255,255,0.05)", color:"rgba(255,255,255,0.16)" }}
-        >
-          Built by{" "}
-          <span className="font-semibold" style={{ color:"rgba(255,255,255,0.32)" }}>Johnny Nguyen</span>
-          {" "}· Data from Touring Plans · 1,754,414 records · Random Forest ML model
-        </footer>
-      </main>
-    </div>
-  );
+// ================================================================
+// FOOTER
+// ================================================================
+
+function Footer() {
+  return (
+    <footer className="relative py-16 px-6 mt-8">
+      <div className="section-divider mb-12" />
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+          <div>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "rgba(200,146,42,0.12)", border: "1px solid rgba(200,146,42,0.25)" }}>
+                <Star size={16} style={{ color: "#C8922A" }} />
+              </div>
+              <span className="font-bold text-[#EDE9E3]">WDW Analysis</span>
+            </div>
+            <p className="text-xs text-[#3A506B] leading-relaxed max-w-[28ch]">
+              A data science portfolio project by Johnny Nguyen. Historical wait-time analysis and machine learning modeling.
+            </p>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-4">Dataset</div>
+            <ul className="space-y-2 text-xs text-[#3A506B]">
+              <li>Source: Touring Plans historical data</li>
+              <li>Records: 1,754,414 wait-time entries</li>
+              <li>Parks: MK · EPCOT · DHS · DAK</li>
+              <li>Range: January 2015 – December 2021</li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold tracking-[0.2em] uppercase text-[#C8922A] mb-4">Model Details</div>
+            <ul className="space-y-2 text-xs text-[#3A506B]">
+              <li>Algorithm: Random Forest Regressor</li>
+              <li>R² Score: 0.579</li>
+              <li>Mean Absolute Error: ±15 min</li>
+              <li>Top feature: Attraction identity (80.3%)</li>
+            </ul>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-[#3A506B]">
+          <span>
+            Walt Disney World® is a registered trademark of The Walt Disney Company. Independent academic analysis only.
+          </span>
+          <span className="font-mono">© 2024 Johnny Nguyen · Data Science Portfolio</span>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
+// ================================================================
+// MAIN PAGE
+// ================================================================
+
+export default function Page() {
+  const [activeSection, setActiveSection] = useState("hero")
+
+  useEffect(() => {
+    const ids = ["hero", "overview", "rides", "predict", "timing", "studios"]
+    const observers: IntersectionObserver[] = []
+    ids.forEach((id) => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id) },
+        { threshold: 0.3 },
+      )
+      obs.observe(el)
+      observers.push(obs)
+    })
+    return () => observers.forEach((o) => o.disconnect())
+  }, [])
+
+  return (
+    <main className="relative bg-[#020B18] min-h-screen">
+      <div className="noise-overlay" aria-hidden="true" />
+      <div className="ambient-bg"   aria-hidden="true" />
+      <ParticleField />
+      <CursorSpotlight />
+      <Navigation activeSection={activeSection} />
+      <HeroSection />
+      <OverviewSection />
+      <RidesSection />
+      <PredictSection />
+      <TimingSection />
+      <StudiosSection />
+      <Footer />
+    </main>
+  )
 }
