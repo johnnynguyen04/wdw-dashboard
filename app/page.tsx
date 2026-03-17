@@ -1302,7 +1302,7 @@ function Footer() {
           <span>
             Walt Disney World® is a registered trademark of The Walt Disney Company. Independent academic analysis only.
           </span>
-          <span className="font-mono">© 2025 <span style={{ color: "#C8922A" }}>Johnny Nguyen</span> · Data science portfolio</span>
+          <span className="font-mono">© 2026 <span style={{ color: "#C8922A" }}>Johnny Nguyen</span> · Data science portfolio</span>
         </div>
       </div>
     </footer>
