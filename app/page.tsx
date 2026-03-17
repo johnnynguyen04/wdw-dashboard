@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   motion, AnimatePresence,
   useMotionValue, useSpring,
+  useScroll, useTransform,
 } from "framer-motion";
 import {
   Rocket, Guitar, Dog, Orbit, Pickaxe, Wind, CloudSun, Swords,
@@ -26,6 +27,31 @@ const fadeUp = {
   hidden: { opacity: 0, y: 16 },
   show: { opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] as const } },
 };
+
+/* ── Cursor Spotlight ── */
+function CursorSpotlight() {
+  const [pos, setPos] = useState({ x: -999, y: -999 });
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => { setPos({ x: e.clientX, y: e.clientY }); setActive(true); };
+    const leave = () => setActive(false);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseleave", leave);
+    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseleave", leave); };
+  }, []);
+
+  return (
+    <div
+      className="cursor-spotlight"
+      style={{
+        background: active
+          ? `radial-gradient(600px circle at ${pos.x}px ${pos.y}px, rgba(240,180,41,0.055) 0%, rgba(100,80,220,0.025) 40%, transparent 70%)`
+          : "transparent",
+      }}
+    />
+  );
+}
 
 /* ── Castle Logo ── */
 function CastleLogo({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
@@ -121,30 +147,46 @@ function TiltCard({
   style?: React.CSSProperties;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const sheenRef = useRef<HTMLDivElement>(null);
   const rotX = useMotionValue(0);
   const rotY = useMotionValue(0);
-  const springX = useSpring(rotX, { stiffness: 180, damping: 22 });
-  const springY = useSpring(rotY, { stiffness: 180, damping: 22 });
+  const springX = useSpring(rotX, { stiffness: 200, damping: 20 });
+  const springY = useSpring(rotY, { stiffness: 200, damping: 20 });
 
-  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+  const onMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const el = ref.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    rotX.set(((e.clientY - r.top  - r.height / 2) / r.height) * -9);
-    rotY.set(((e.clientX - r.left - r.width  / 2) / r.width)  *  9);
-  }
-  function onLeave() { rotX.set(0); rotY.set(0); }
+    const nx = (e.clientX - r.left) / r.width;
+    const ny = (e.clientY - r.top)  / r.height;
+    rotX.set((ny - 0.5) * -12);
+    rotY.set((nx - 0.5) *  12);
+    if (sheenRef.current) {
+      sheenRef.current.style.setProperty("--mx", `${nx * 100}%`);
+      sheenRef.current.style.setProperty("--my", `${ny * 100}%`);
+      sheenRef.current.classList.add("tilt-sheen-visible");
+    }
+  }, [rotX, rotY]);
+
+  const onLeave = useCallback(() => {
+    rotX.set(0); rotY.set(0);
+    sheenRef.current?.classList.remove("tilt-sheen-visible");
+  }, [rotX, rotY]);
 
   return (
     <motion.div
       ref={ref}
       variants={cardVar}
-      style={{ rotateX: springX, rotateY: springY, transformStyle: "preserve-3d", ...style }}
+      whileInView="show"
+      initial="hidden"
+      viewport={{ once: true, margin: "-40px" }}
+      style={{ rotateX: springX, rotateY: springY, transformStyle: "preserve-3d", position: "relative", ...style }}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
-      whileHover={{ scale: 1.008 }}
+      whileHover={{ scale: 1.007, z: 8 }}
       className={className}
     >
+      <div ref={sheenRef} className="tilt-sheen" />
       {children}
     </motion.div>
   );
@@ -471,17 +513,6 @@ function PredictionTab() {
   );
 }
 
-/* ── Ride Photos (Unsplash, free to use) ── */
-const RIDE_PHOTOS: Record<number, string> = {
-  0: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=80&h=80&fit=crop&auto=format", // colorful toys
-  1: "https://images.unsplash.com/photo-1550985616-10810253b84d?w=80&h=80&fit=crop&auto=format", // guitar/rock
-  2: "https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=80&h=80&fit=crop&auto=format", // roller coaster
-  3: "https://images.unsplash.com/photo-1446941611757-91d2c3bd3d45?w=80&h=80&fit=crop&auto=format", // space/stars
-  4: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=80&h=80&fit=crop&auto=format", // mine/cave
-  5: "https://images.unsplash.com/photo-1559827291-72ee739d0d9a?w=80&h=80&fit=crop&auto=format", // bird/flight/nature
-  6: "https://images.unsplash.com/photo-1436891620584-47fd0e565afb?w=80&h=80&fit=crop&auto=format", // aerial/soaring view
-  7: "https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=80&h=80&fit=crop&auto=format", // ocean/sea/pirates
-};
 
 /* ── Park Photos (used as card backdrops) ── */
 const PARK_PHOTOS: Record<string, string> = {
@@ -496,6 +527,12 @@ export default function Dashboard() {
   const [tab, setTab]       = useState("overview");
   const [mounted, setMounted] = useState(false);
 
+  const heroRef = useRef<HTMLElement>(null);
+  const { scrollY } = useScroll();
+  const heroImgY  = useTransform(scrollY, [0, 400], [0, 80]);
+  const heroTextY = useTransform(scrollY, [0, 400], [0, 30]);
+  const heroOpacity = useTransform(scrollY, [0, 280], [1, 0.3]);
+
   useEffect(() => { setMounted(true); }, []);
 
   const tabs = [
@@ -508,21 +545,30 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen" style={{ background:"var(--bg-deep)" }}>
+      {/* Global overlays */}
+      <CursorSpotlight />
+      <div className="noise-overlay" />
+      <div className="ambient-grid fixed inset-0 pointer-events-none" style={{ zIndex:0 }} />
 
       {/* ══════════════════════════════════════════
           HERO HEADER
       ══════════════════════════════════════════ */}
-      <header className="relative overflow-hidden" style={{ minHeight:240 }}>
+      <header ref={heroRef} className="relative overflow-hidden" style={{ minHeight:300, zIndex: 2 }}>
 
-        {/* Background photo — fireworks night sky */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=1920&q=40&auto=format&fit=crop"
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
-          style={{ opacity: 0.13, filter: "blur(1px) saturate(1.2)" }}
-        />
+        {/* Background photo — fireworks night sky (parallax) */}
+        <motion.div
+          className="absolute inset-0 pointer-events-none select-none"
+          style={{ y: heroImgY }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://images.unsplash.com/photo-1467269204594-9661b134dd2b?w=1920&q=40&auto=format&fit=crop"
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover"
+            style={{ opacity: 0.18, filter: "blur(0.5px) saturate(1.3)", transform: "scale(1.1)" }}
+          />
+        </motion.div>
 
         {/* Layered atmospheric background */}
         <div
@@ -563,7 +609,10 @@ export default function Dashboard() {
 
         <SparkleField />
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-12 pb-5 relative">
+        <motion.div
+          className="max-w-5xl mx-auto px-4 sm:px-6 pt-14 pb-6 relative"
+          style={{ y: heroTextY, opacity: heroOpacity }}
+        >
           <motion.div initial="hidden" animate={mounted ? "show" : "hidden"} variants={stagger}>
 
             {/* Castle + Title */}
@@ -630,13 +679,13 @@ export default function Dashboard() {
             </motion.nav>
 
           </motion.div>
-        </div>
+        </motion.div>
       </header>
 
       {/* ══════════════════════════════════════════
           CONTENT
       ══════════════════════════════════════════ */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-7">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-7 relative" style={{ zIndex: 2 }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={tab}
@@ -773,19 +822,6 @@ export default function Dashboard() {
                       >
                         <div className="flex justify-between text-xs mb-1.5 items-center gap-2">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            {/* Ride photo thumbnail */}
-                            <div
-                              className="w-8 h-8 rounded-lg overflow-hidden shrink-0"
-                              style={{ boxShadow: `0 0 0 1px ${PARK_COLORS[r.park]}40` }}
-                            >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={RIDE_PHOTOS[r.id]}
-                                alt={r.name}
-                                className="w-full h-full object-cover"
-                                style={{ filter: "brightness(0.85) saturate(1.1)" }}
-                              />
-                            </div>
                             <span className="text-gray-200 font-medium truncate">{r.name}</span>
                             <span
                               className="px-2 py-0.5 rounded-md text-[10px] whitespace-nowrap hidden sm:inline-block"
