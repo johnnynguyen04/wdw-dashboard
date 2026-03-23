@@ -27,6 +27,8 @@
   --park-ak: #5A9E6F;
   --park-ep: #8B6BB5;
 
+  --bar-track: rgba(255, 255, 255, 0.06);
+
   --radius-card: 18px;
   --shadow-card:  0 24px 60px -16px rgba(2, 11, 24, 0.75), 0 8px 20px -8px rgba(7, 22, 38, 0.4);
   --shadow-glow:  0 0 40px -8px rgba(200, 146, 42, 0.18);
@@ -172,9 +174,6 @@ body {
     var(--shadow-card),
     var(--shadow-glow);
 }
-.glass-card-hover:active {
-  transform: scale(0.985) translateY(1px);
-}
 
 /* Gold shimmer text */
 .shimmer-gold {
@@ -273,15 +272,23 @@ body {
 /* ============================================================
    AMBIENT BACKGROUND (fixed — zero scroll cost)
 ============================================================ */
-.ambient-bg {
+.ambient-bg-dark,
+.ambient-bg-light {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  transition: opacity 0.9s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.ambient-bg-dark {
   background:
     radial-gradient(ellipse 80% 50% at 50% -10%, rgba(74,127,193,0.08) 0%, transparent 70%),
     radial-gradient(ellipse 60% 40% at 80% 80%, rgba(200,146,42,0.04) 0%, transparent 60%),
     radial-gradient(ellipse 50% 60% at 10% 90%, rgba(74,127,193,0.04) 0%, transparent 60%);
+}
+.ambient-bg-light {
+  background:
+    linear-gradient(180deg, #7EC8E3 0%, #A8D8EA 30%, #D4ECFD 55%, #EAF2FF 100%);
 }
 
 /* ============================================================
@@ -298,3 +305,92 @@ body {
     transparent 100%
   );
 }
+
+/* ============================================================
+   THEME TRANSITION
+============================================================ */
+body,
+.glass-card,
+.glass-card::before,
+.themed-select,
+.section-divider,
+.noise-overlay {
+  transition:
+    background-color 0.8s cubic-bezier(0.32, 0.72, 0, 1),
+    background 0.8s cubic-bezier(0.32, 0.72, 0, 1),
+    border-color 0.6s cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 0.6s cubic-bezier(0.32, 0.72, 0, 1),
+    color 0.6s cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ============================================================
+   LIGHT MODE
+============================================================ */
+[data-theme="light"] {
+  --bg-base: #EAF2FF;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F0F5FF;
+  --bg-card: rgba(255, 255, 255, 0.72);
+
+  --text-primary: #1A1A2E;
+  --text-secondary: #4A5A7A;
+  --text-muted: #8B95A7;
+
+  --border: rgba(200, 146, 42, 0.15);
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border-hover: rgba(200, 146, 42, 0.35);
+
+  --shadow-card: 0 8px 30px -10px rgba(0, 0, 0, 0.07), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 30px -6px rgba(200, 146, 42, 0.1);
+
+  --bar-track: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.55);
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    var(--shadow-card);
+}
+[data-theme="light"] .glass-card::before {
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+}
+[data-theme="light"] .glass-card-hover:hover {
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    var(--shadow-card);
+}
+
+[data-theme="light"] .themed-select {
+  background-color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(200, 146, 42, 0.18);
+  color: var(--text-primary);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='7' viewBox='0 0 12 7'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A5A7A' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+[data-theme="light"] .themed-select option {
+  background-color: #FFFFFF;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .noise-overlay { opacity: 0.012; }
+
+
+[data-theme="light"] .section-divider {
+  background: linear-gradient(90deg, transparent 0%, rgba(200,146,42,0.1) 25%, rgba(200,146,42,0.2) 50%, rgba(200,146,42,0.1) 75%, transparent 100%);
+}
+
+[data-theme="light"] .shimmer-gold {
+  background: linear-gradient(90deg, #A0741A 0%, #C8922A 38%, #E5AB3A 50%, #C8922A 62%, #A0741A 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+html[data-theme="light"]::-webkit-scrollbar-track { background: #EAF2FF; }
+html[data-theme="light"]::-webkit-scrollbar-thumb { background: rgba(200,146,42,0.2); }
+html[data-theme="light"]::-webkit-scrollbar-thumb:hover { background: rgba(200,146,42,0.45); }
