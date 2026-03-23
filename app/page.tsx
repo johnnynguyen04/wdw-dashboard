@@ -632,7 +632,7 @@ function Navigation({ activeSection, theme, setTheme }: { activeSection: string;
           </span>
         </button>
 
-        <nav className="flex items-center gap-0.5" aria-label="Sections">
+        <nav className="flex items-center gap-0.5 overflow-x-auto max-w-[60vw] md:max-w-none scrollbar-hide" aria-label="Sections">
           {NAV_ITEMS.map((item) => {
             const active = activeSection === item.id
             return (
@@ -641,7 +641,7 @@ function Navigation({ activeSection, theme, setTheme }: { activeSection: string;
                 onClick={() => scrollTo(item.id)}
                 whileHover={{ scale: 1.08, y: -1 }}
                 transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                className="relative px-3.5 py-2 text-sm font-medium rounded-lg"
+                className="relative px-2.5 sm:px-3.5 py-2 text-xs sm:text-sm font-medium rounded-lg flex-shrink-0"
                 style={{ color: active ? "var(--text-primary)" : "var(--text-secondary)" }}
               >
                 {active && (
@@ -1642,7 +1642,7 @@ function ParksSection() {
             initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}>
 
-            <TiltCard className="glass-card p-8 mb-6 overflow-x-auto" intensity={2}>
+            <TiltCard className="glass-card p-4 sm:p-8 mb-6 overflow-x-auto" intensity={2}>
               <div className="text-[11px] font-semibold tracking-[0.2em] uppercase mb-6" style={{ color: parkMeta?.color ?? "#C8922A" }}>
                 Avg Wait (min) · {activePark} · Hourly
               </div>
