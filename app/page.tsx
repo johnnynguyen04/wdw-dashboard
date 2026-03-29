@@ -743,7 +743,7 @@ function HeroSection() {
             <motion.p variants={itemV} className="text-[var(--text-secondary)] text-lg leading-relaxed max-w-[46ch] mb-10">
               A Gradient Boosting machine learning analysis of{" "}
               <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>3,146,086 wait-time records</span>{" "}
-              across 14 attractions and 4 parks — revealing exactly when to go, what to skip, and what to ride first.
+              across 14 attractions and 4 parks — figuring out when lines are shortest and which rides are worth the wait.
             </motion.p>
 
             <motion.div variants={itemV} className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
@@ -820,7 +820,7 @@ function OverviewSection() {
         <SectionHeader
           label="By the Numbers"
           title="7 years. 3.15M records."
-          subtitle="Every wait-time data point from 2015 through 2021, distilled into actionable patterns across 14 attractions."
+          subtitle="All posted wait-time data from 2015 through 2021 for 14 attractions, broken down by hour, day, month, and season."
         />
 
         {/* Row 1: 2fr + 1fr stacked */}
@@ -947,8 +947,8 @@ function RidesSection() {
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Attraction Analysis"
-          title="Every ride, decoded."
-          subtitle="Average, median, and standard deviation for all 14 attractions — so you know exactly what to expect before you step in line."
+          title="Every ride, compared."
+          subtitle="Average, median, and standard deviation for all 14 attractions — the full spread of what you're likely waiting."
         />
 
         {/* Park filter */}
@@ -1091,7 +1091,7 @@ function PredictSection() {
         <SectionHeader
           label="Machine Learning Model"
           title="Predict your wait."
-          subtitle="Gradient Boosting model trained on 3.15M records. Select an attraction, day, and travel month for an instant prediction."
+          subtitle="Gradient Boosting model trained on 3.15M records. Pick a ride, day, and month to see what the model thinks."
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1267,8 +1267,8 @@ function TimingSection() {
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Visit Planning"
-          title="Timing is everything."
-          subtitle="Day-of-week patterns reveal a clear midweek advantage — up to 10% shorter waits than weekend peaks."
+          title="When to go."
+          subtitle="Midweek visits consistently have shorter waits — about 10% less than Saturday peaks."
         />
 
         <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-6 mb-6">
@@ -1311,14 +1311,14 @@ function TimingSection() {
           {/* Recommendations */}
           <div className="flex flex-col gap-4">
             {[
-              { icon: <CheckCircle2 size={15} />, color: "#5A9E6F", title: "Best Days to Go",
-                body: "Tue & Wed consistently lowest — 47–48 min average vs 52 min Saturday peak." },
-              { icon: <Clock size={15} />,        color: "#C8922A", title: "Rope Drop Strategy",
-                body: "First 90 minutes after open: 40–60% shorter waits. Hit the top rides immediately." },
-              { icon: <Calendar size={15} />,     color: "#4A7FC1", title: "Fall Is Your Friend",
-                body: "Sep–Nov averages 42.3 min — lowest of all seasons. September alone drops to just 32.9 min." },
-              { icon: <AlertTriangle size={15} />,color: "#C84A2A", title: "Avoid Holiday Weeks",
-                body: "Spring Break (+17%) and Christmas (+13%) are the biggest crowd spikes in the dataset." },
+              { icon: <CheckCircle2 size={15} />, color: "#5A9E6F", title: "Tue & Wed win",
+                body: "47–48 min average on Tuesday/Wednesday vs 52 min on Saturday. Consistent across all rides." },
+              { icon: <Clock size={15} />,        color: "#C8922A", title: "Rope drop matters",
+                body: "Waits in the first 90 minutes after open are 40–60% shorter than midday." },
+              { icon: <Calendar size={15} />,     color: "#4A7FC1", title: "Go in the fall",
+                body: "Sep–Nov averages 42.3 min, the lowest of any season. September alone is 32.9 min." },
+              { icon: <AlertTriangle size={15} />,color: "#C84A2A", title: "Skip holiday weeks",
+                body: "Spring Break (+17%) and Christmas (+13%) have the biggest crowd spikes in the data." },
             ].map((card, i) => (
               <motion.div key={card.title} initial={{ opacity: 0, x: 16, filter: "blur(3px)" }}
                 whileInView={{ opacity: 1, x: 0, filter: "blur(0px)" }}
@@ -1384,8 +1384,8 @@ function ModelsSection() {
       <div className="max-w-7xl mx-auto">
         <SectionHeader
           label="Model Iteration"
-          title="Two models. One truth."
-          subtitle="Random Forest vs Gradient Boosting trained on 3.15M records — then 14 per-ride models to see what happens when you remove the dominant feature."
+          title="RF vs Gradient Boosting."
+          subtitle="Both models trained on 3.15M records. Gradient Boosting edges out Random Forest, and per-ride models show what matters once you control for attraction identity."
         />
 
         {/* Model comparison cards */}
@@ -1487,10 +1487,10 @@ function ModelsSection() {
             <div>
               <div className="text-sm font-bold text-[var(--text-primary)] mb-1.5">Why per-ride models?</div>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-[64ch]">
-                Attraction identity dominates at 65–71% of feature importance in the combined model. By training
-                separate models per ride, we remove that dominant feature and let temporal patterns (hour, month,
-                day of week) explain the remaining variance — revealing that <span className="text-[var(--text-primary)] font-semibold">Hour of Day</span> is
-                the strongest predictor for 13 of 14 rides.
+                Attraction identity accounts for 65–71% of feature importance in the combined model — it's basically
+                saying "some rides are busier than others." Training per-ride models removes that and lets the temporal
+                features do the work. Result: <span className="text-[var(--text-primary)] font-semibold">Hour of Day</span> is
+                the top predictor for 13 of 14 rides.
               </p>
             </div>
           </div>
@@ -1614,7 +1614,7 @@ function ParksSection() {
         <SectionHeader
           label="Park Deep Dive"
           title="Hour by hour."
-          subtitle="Hourly wait-time heatmaps for every attraction across all 4 parks — plan your visit down to the minute."
+          subtitle="Hourly wait-time heatmaps for every attraction across all 4 parks. Where the lines are, and when they aren't."
         />
 
         {/* Park tabs */}
@@ -1741,7 +1741,7 @@ function Footer() {
               <span className="font-bold text-[var(--text-primary)]">WDW Analysis</span>
             </div>
             <p className="text-xs text-[var(--text-muted)] leading-relaxed max-w-[28ch]">
-              A data science portfolio project by Johnny Nguyen. Historical wait-time analysis and machine learning modeling.
+              Built by Johnny Nguyen. Wait-time analysis and ML modeling using the TouringPlans dataset.
             </p>
           </div>
           <div>
