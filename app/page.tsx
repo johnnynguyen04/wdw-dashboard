@@ -220,20 +220,42 @@ const MagicCanvas = memo(function MagicCanvas() {
     let shoots: ShootP[] = []
     let t = 0
     let shootFired = false
+    let firstInit = true
 
     const init = () => {
-      W = window.innerWidth
-      H = window.innerHeight
-      canvas.width  = W
+      const newW = window.innerWidth
+      const newH = window.innerHeight
+
+      if (firstInit) {
+        W = newW
+        H = newH
+        canvas.width = W
+        canvas.height = H
+        stars = Array.from({ length: 320 }, () => ({
+          x:     Math.random() * W,
+          y:     Math.random() * H * 0.95,
+          r:     Math.random() * 1.5 + 0.2,
+          phase: Math.random() * Math.PI * 2,
+          speed: Math.random() * 0.016 + 0.004,
+          maxOp: Math.random() * 0.6 + 0.2,
+        }))
+        firstInit = false
+        return
+      }
+
+      // Subsequent resizes (incl. iOS Safari address-bar toggle): scale
+      // existing stars proportionally instead of regenerating. Prevents
+      // the "stars teleporting during scroll" bug on mobile.
+      const scaleX = newW / W || 1
+      const scaleY = newH / H || 1
+      for (const s of stars) {
+        s.x *= scaleX
+        s.y *= scaleY
+      }
+      W = newW
+      H = newH
+      canvas.width = W
       canvas.height = H
-      stars = Array.from({ length: 320 }, () => ({
-        x:     Math.random() * W,
-        y:     Math.random() * H * 0.95,
-        r:     Math.random() * 1.5 + 0.2,
-        phase: Math.random() * Math.PI * 2,
-        speed: Math.random() * 0.016 + 0.004,
-        maxOp: Math.random() * 0.6 + 0.2,
-      }))
     }
 
     // Fire the signature shooting star ONCE, ~800ms after mount.
@@ -304,11 +326,21 @@ const MagicCanvas = memo(function MagicCanvas() {
 
     init(); tick()
     const shootTimer = window.setTimeout(fireSignatureShoot, 800)
-    window.addEventListener("resize", init)
+
+    // Debounced resize so iOS Safari's rapid address-bar-toggle doesn't
+    // trigger constant re-inits during scroll.
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const onResize = () => {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(init, 150)
+    }
+    window.addEventListener("resize", onResize)
+
     return () => {
       cancelAnimationFrame(raf)
       window.clearTimeout(shootTimer)
-      window.removeEventListener("resize", init)
+      if (resizeTimer) clearTimeout(resizeTimer)
+      window.removeEventListener("resize", onResize)
     }
   }, [])
 
@@ -316,7 +348,17 @@ const MagicCanvas = memo(function MagicCanvas() {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 0,
+        // Promote to its own compositor layer so iOS doesn't repaint
+        // the canvas on every scroll frame.
+        transform: "translateZ(0)",
+        willChange: "transform",
+        backfaceVisibility: "hidden",
+      }}
     />
   )
 })
