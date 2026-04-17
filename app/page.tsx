@@ -327,10 +327,14 @@ const MagicCanvas = memo(function MagicCanvas() {
     init(); tick()
     const shootTimer = window.setTimeout(fireSignatureShoot, 800)
 
-    // Debounced resize so iOS Safari's rapid address-bar-toggle doesn't
-    // trigger constant re-inits during scroll.
+    // iOS Safari fires a resize event every time its address bar toggles
+    // during scroll. We only want to re-init for meaningful changes
+    // (device rotation, window resize on desktop) — which always change
+    // the WIDTH. Pure-height changes are always iOS address-bar noise
+    // and we ignore them entirely.
     let resizeTimer: ReturnType<typeof setTimeout> | null = null
     const onResize = () => {
+      if (window.innerWidth === W) return // height-only change — skip
       if (resizeTimer) clearTimeout(resizeTimer)
       resizeTimer = setTimeout(init, 150)
     }
